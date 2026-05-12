@@ -1,51 +1,58 @@
-pub enum addsub {
+#[derive(Debug, Clone)]
+pub enum Addsub {
     Add,
     Sub
 }
 
-pub enum multdiv {
+#[derive(Debug, Clone)]
+pub enum Multdiv {
     Mult,
     Div
 }
 
-pub enum branch {
+#[derive(Debug, Clone)]
+pub enum Branch {
     If,
     Else,
     While,
     Return
 }
 
-pub enum vtype {
+#[derive(Debug, Clone)]
+pub enum Vtype {
     Float,
     Integer,
     Other(String)
 }
 
-pub enum ponctuation {
+#[derive(Debug, Clone)]
+pub enum Ponctuation {
     Semi,
     Comma,
 }
 
-pub enum nesting {
+#[derive(Debug, Clone)]
+pub enum Nesting {
     Lparen,
     Rparen,
     Lbrace,
     Rbrace,
 }
 
-pub enum token {
-    Vtype(vtype),
+#[derive(Debug, Clone)]
+pub enum Token {
+    Vtype(Vtype),
     Literal(String),
     Boolstr(bool),
     Num(i64),
     Character(char),
     Id(String),
     Class(String),
-    Addsub(addsub),
-    Multdiv(multdiv),
+    Addsub(Addsub),
+    Multdiv(Multdiv),
     Assign,
     Comp,
-    Branchs(branch),
-    Ponctuation(ponctuation),
-    Nesting(nesting),
+    Branchs(Branch),
+    Ponctuation(Ponctuation),
+    Nesting(Nesting),
 }
