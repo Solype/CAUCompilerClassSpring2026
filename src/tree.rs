@@ -1,7 +1,10 @@
+#![allow(dead_code)]
+
 use crate::token::Token;
 use std::{
     fmt::{self, Error, Write},
 };
+
 
 #[derive(Debug, Clone)]
 pub struct Tree {

@@ -1,16 +1,5 @@
-#[derive(Debug, Clone)]
-pub enum Addsub {
-    Add,
-    Sub
-}
 
-#[derive(Debug, Clone)]
-pub enum Multdiv {
-    Mult,
-    Div
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Branch {
     If,
     Else,
@@ -18,20 +7,13 @@ pub enum Branch {
     Return
 }
 
-#[derive(Debug, Clone)]
-pub enum Vtype {
-    Float,
-    Integer,
-    Other(String)
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ponctuation {
     Semi,
     Comma,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Nesting {
     Lparen,
     Rparen,
@@ -39,17 +21,17 @@ pub enum Nesting {
     Rbrace,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
-    Vtype(Vtype),
-    Literal(String),
-    Boolstr(bool),
-    Num(i64),
-    Character(char),
-    Id(String),
-    Class(String),
-    Addsub(Addsub),
-    Multdiv(Multdiv),
+    Vtype,
+    Literal,
+    Boolstr,
+    Num,
+    Character,
+    Id,
+    Class,
+    Addsub,
+    Multdiv,
     Assign,
     Comp,
     Branchs(Branch),
