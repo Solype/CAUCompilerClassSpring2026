@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::{HashMap, HashSet}, fmt::Debug, hash::Hash};
 
 #[derive(Debug)]
 pub struct Rule<T>
@@ -15,10 +15,7 @@ where
 {
     pub fn new(output: T, input: Vec<T>) -> Self
     {
-        Self {
-            input: input,
-            output: output,
-        }
+        Self { input: input, output: output, }
     }
 
     #[inline]
@@ -26,45 +23,162 @@ where
     {
         self.input.len()
     }
+}
 
-    pub fn is_matching(&self, expr: &Vec<T>) -> bool
+
+
+
+
+
+
+
+
+#[derive(Default, Debug)]
+struct RuleTreeBranch <T>
+where
+    T: PartialEq + Default + Clone + Hash + Eq
+{
+    output : Option<T>,
+    children: HashMap<T, RuleTreeBranch<T>>,
+    deepness: usize,
+}
+
+
+impl <T> RuleTreeBranch<T>
+where
+    T: PartialEq + Default + Clone + Hash + Eq + Debug
+{
+    pub fn get_and_add_child_mut(&mut self, matching_value : &T) -> &mut Self
     {
-        if self.len() > expr.len() {
-            return false;
-        }
-        let difference = expr.len() - self.input.len();
-        for (a, b) in self.input.iter().zip(expr.iter().nth(difference)) {
-                if a != b {
-                    return false;
-                }
-        }
-        return true;
+        self.children
+            .entry(matching_value.clone())
+            .or_insert(RuleTreeBranch {
+                output: None,
+                children: HashMap::new(),
+                deepness: self.deepness + 1,
+            })
     }
 
-    pub fn expression(&self) -> T
+    #[inline]
+    pub fn get_child(&self, matching_value : &T) -> Option<&Self>
     {
-        self.output.clone()
+        self.children.get(matching_value)
+    }
+
+    pub fn display(&self)
+    {
+        println!("{}{:?}", "\t".repeat(self.deepness), self.output);
+        for (key, val) in self.children.iter() {
+            println!("{}{:?}", "\t".repeat(self.deepness + 1), key);
+            val.display();
+        }
+    }
+
+}
+
+#[derive(Debug, PartialEq)]
+struct ReturnSequence <T>
+{
+    pub value: T,
+    pub size: usize,
+}
+
+#[derive(Default, Debug)]
+struct RuleTree <T>
+where
+    T: PartialEq + Default + Clone + Hash + Eq + Debug
+{
+    can_be_epsilon: HashSet<T>,
+    root: Option<RuleTreeBranch<T>>
+}
+
+impl <T> RuleTree<T>
+where
+    T: PartialEq + Default + Clone + Hash + Eq + Debug
+{
+    pub fn add_epsilon_possibility(&mut self, token: T) -> &mut Self
+    {
+        self.can_be_epsilon.insert(token);
+        return self;
+    }
+
+    pub fn add_rule(&mut self, rule: Rule<T>) -> &mut Self
+    {
+        let mut branch = match self.root.as_mut() {
+            Some(root) => root,
+            None => {
+                self.root = Some(RuleTreeBranch::default());
+                self.root.as_mut().unwrap()
+            }
+        };
+        for token in rule.input {
+            branch = branch.get_and_add_child_mut(&token);
+        }
+        branch.output = Some(rule.output);
+        return self;
+    }
+
+    pub fn display(&self) -> &Self
+    {
+        println!("Tree:");
+        if let Some(tree) = &self.root {
+            tree.display();
+        }
+        return self;
+    }
+
+    pub fn parse_sequence<'a, I>( &self, sequence: &mut std::iter::Peekable<I>, ) -> Option<ReturnSequence<T>>
+    where
+        I: Iterator<Item = &'a T>,
+        T: 'a,
+    {
+        if self.root.is_none() {
+            return None;
+        }
+
+        let mut ret_sequence: Option<ReturnSequence<T>> = None;
+        let mut branch = self.root.as_ref().unwrap();
+        let mut ndx: usize = 0;
+
+        while let Some(elem) = sequence.peek() {
+            if let Some(child) = branch.get_child(elem) {
+                branch = child;
+                if let Some(val) = branch.output.clone() {
+                    ret_sequence = Some(ReturnSequence { value: val, size: ndx + 1, });
+                }
+                sequence.next();
+                ndx += 1;
+            } else if self.can_be_epsilon.get(*elem).is_some() {
+                sequence.next();
+                ndx += 1;
+                continue;
+            } else {
+                return ret_sequence;
+            }
+        }
+        ret_sequence
     }
 }
+
+
+
 
 
 #[derive(Default, Debug)]
 pub struct Parser<T>
 where
-    T: PartialEq + Default,
+    T: PartialEq + Default + Clone + Hash + Eq + Debug,
 {
-    stack: Vec<T>,
-    rules: HashMap<usize, Vec<Rule<T>>>,
-    biggest_rule: usize
+    rules: RuleTree<T>,
 }
 
 impl<T> Parser<T>
 where
-    T: PartialEq + Default + Clone + Debug,
+    T: PartialEq + Default + Clone + Debug + Hash + Eq,
 {
     pub fn new() -> Self
     {
-        Self::default()
+        return Self::default()
     }
 
     pub fn add_rules(&mut self, rules: Vec<Rule<T>>) -> &mut Self
@@ -77,63 +191,33 @@ where
 
     pub fn add_rule(&mut self, rule : Rule<T>) -> &mut Self
     {
-        let size = rule.len();
-        self.rules.entry(size).or_insert_with(Vec::new).push(rule);
-
-        if size > self.biggest_rule {
-            self.biggest_rule = size
+        if rule.len() == 0 {
+            self.rules.add_epsilon_possibility(rule.output);
+            return self;
         }
+        self.rules.add_rule(rule);
         return self;
     }
 
-    fn activate_rule(stack: &mut Vec<T>, rule: &Rule<T>, size : usize)
+    pub fn parse_sequence(&self, sequence: &mut Vec<T>) -> &Self
     {
-        for _ in 0..size {
-            stack.pop();
-        }
-        stack.push(rule.expression());
-    }
-
-    fn match_rule_of_size(&mut self, size : usize) -> &mut Self
-    {
-        if let Some(rules) = self.rules.get(&size) {
-            for rule in rules {
-                if rule.is_matching(&self.stack) {
-                    Self::activate_rule(&mut self.stack, rule, size);
-                    self.match_rule();
-                    return self
-                }
+        let mut ndx: usize = 0;
+        while ndx < sequence.len() {
+            if let Some(expr) = self.rules.parse_sequence(&mut sequence.iter().skip(ndx).peekable()) {
+                println!("Expression: {:?}", expr);
+                sequence.splice(ndx..ndx + expr.size, vec![expr.value]);
+                ndx = 0;
+                println!("new sequence: {:?}", sequence);
+            } else {
+                ndx += 1;
             }
         }
         return self;
     }
 
-    fn match_rule(&mut self) -> &mut Self{
-        for size in (1..=self.biggest_rule).rev() {
-            if self.stack.len() < size {
-                return self;
-            }
-            self.match_rule_of_size(size);
-        }
+    pub fn display_rules(&self) -> &Self
+    {
+        self.rules.display();
         return self;
-    }
-
-    pub fn push_expr(&mut self, expr : T) -> &mut Self
-    {
-        self.stack.push(expr);
-        self.match_rule();
-        return self;
-    }
-
-    #[inline]
-    pub fn is_valid(&self) -> bool
-    {
-        self.stack.len() == 1
-    }
-
-    pub fn display_stack(&self) -> &Self
-    {
-        println!("{:?}", self.stack);
-        self
     }
 }

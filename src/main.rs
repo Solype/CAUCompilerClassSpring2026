@@ -5,7 +5,7 @@ use token::*;
 
 use crate::parser::{Parser, Rule};
 
-#[derive(PartialEq, Eq, Debug, Default, Clone)]
+#[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
 pub enum Expression {
     Token(Token),
     #[default]
@@ -34,6 +34,7 @@ fn get_rules() -> Vec<Rule<Expression>>
         Rule::new(Expression::CODE, vec![Expression::VDECL, Expression::CODE]),
         Rule::new(Expression::CODE, vec![Expression::FDECL, Expression::CODE]),
         Rule::new(Expression::CODE, vec![Expression::CDECL, Expression::CODE]),
+        Rule::new(Expression::CODE, vec![]),
 
         // 02
         Rule::new(Expression::VDECL, vec![
@@ -99,6 +100,7 @@ fn get_rules() -> Vec<Rule<Expression>>
             Expression::Token(Token::Vtype),
             Expression::MOREARGS
         ]),
+        Rule::new(Expression::ARG, vec![]),
 
         // 09
         Rule::new(Expression::MOREARGS, vec![
@@ -107,12 +109,15 @@ fn get_rules() -> Vec<Rule<Expression>>
             Expression::Token(Token::Vtype),
             Expression::MOREARGS
         ]),
+        Rule::new(Expression::MOREARGS, vec![]),
 
         // 10
         Rule::new(Expression::BLOCK, vec![
             Expression::STMT,
             Expression::BLOCK
         ]),
+        Rule::new(Expression::BLOCK, vec![]),
+
 
         // 11
         Rule::new(Expression::STMT, vec![Expression::VDECL]),
@@ -159,6 +164,8 @@ fn get_rules() -> Vec<Rule<Expression>>
             Expression::BLOCK,
             Expression::Token(Token::Nesting(Nesting::Rbrace))
         ]),
+        Rule::new(Expression::ELSE, vec![]),
+
 
         // 16
         Rule::new(Expression::RETURN, vec![
@@ -185,29 +192,27 @@ fn get_rules() -> Vec<Rule<Expression>>
             Expression::FDECL,
             Expression::ODECL
         ]),
+        Rule::new(Expression::ODECL, vec![]),
     ]
 }
 
-fn expression() -> Vec<Expression>
+fn expression1() -> Vec<Expression>
 {
     return vec![
         Expression::Token(Token::Vtype),
         Expression::Token(Token::Id),
         Expression::Token(Token::Ponctuation(Ponctuation::Semi)),
+    ]
+}
+
+fn expression2() -> Vec<Expression>
+{
+    return vec![
         Expression::Token(Token::Vtype),
         Expression::Token(Token::Id),
-        Expression::Token(Token::Nesting(Nesting::Lparen)),
-        Expression::Token(Token::Nesting(Nesting::Rparen)),
-        Expression::Token(Token::Nesting(Nesting::Lbrace)),
-
-        Expression::Token(Token::Branchs(Branch::If)),
-        Expression::Token(Token::Nesting(Nesting::Lparen)),
-        Expression::Token(Token::Boolstr),
-        Expression::Token(Token::Comp),
-        Expression::Token(Token::Boolstr),
-        Expression::Token(Token::Nesting(Nesting::Rparen)),
-        Expression::Token(Token::Nesting(Nesting::Lbrace)),
-        Expression::Token(Token::Nesting(Nesting::Rbrace)),
+        Expression::Token(Token::Assign),
+        Expression::Token(Token::Num),
+        Expression::Token(Token::Ponctuation(Ponctuation::Semi)),
     ]
 }
 
@@ -215,9 +220,14 @@ fn main() {
     let mut parser = Parser::<Expression>::new();
 
     parser.add_rules(get_rules());
-    for expr in expression() {
-        parser.push_expr(expr);
-    }
-    parser.display_stack();
+    let mut expr = expression1();
+    parser.parse_sequence(&mut expr);
+    println!("{:?}", expr);
+    expr = expression2();
+    parser.parse_sequence(&mut expr);
+    println!("{:?}", expr);
+    // for expr in expression() {
+    //     parser.push_expr(expr);
+    // }
     // println!("{}", tree);
 }
