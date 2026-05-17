@@ -50,8 +50,7 @@ where
 {
     pub fn get_and_add_child_mut(&mut self, matching_value : &T) -> &mut Self
     {
-        self.children
-            .entry(matching_value.clone())
+        self.children.entry(matching_value.clone())
             .or_insert(RuleTreeBranch {
                 output: None,
                 children: HashMap::new(),
@@ -98,12 +97,25 @@ where
 {
     pub fn add_epsilon_possibility(&mut self, token: T) -> &mut Self
     {
+        if self.root.is_some() {
+            eprintln!(
+                "\x1b[93m[WARNING]\x1b[0m epsilon possibilities should be defined before inserting rules into the parser tree."
+            );
+        }
         self.can_be_epsilon.insert(token);
         return self;
     }
 
     pub fn add_rule(&mut self, rule: Rule<T>) -> &mut Self
     {
+        for (i, token) in rule.input.clone().iter().enumerate() {
+            if self.can_be_epsilon.get(&token).is_some() {
+                let mut new_input = rule.input.clone();
+                new_input.remove(i);
+                self.add_rule(Rule { output: rule.output.clone(), input:  new_input});
+            }
+        }
+
         let mut branch = match self.root.as_mut() {
             Some(root) => root,
             None => {
@@ -111,8 +123,13 @@ where
                 self.root.as_mut().unwrap()
             }
         };
+
         for token in rule.input {
             branch = branch.get_and_add_child_mut(&token);
+        }
+        if branch.output.is_some() {
+        eprintln!("\x1b[93m[WARNING]\x1b[0m Rule ignored because another rule already matches this sequence.");
+            return self;
         }
         branch.output = Some(rule.output);
         return self;
@@ -141,6 +158,7 @@ where
         let mut ndx: usize = 0;
 
         while let Some(elem) = sequence.peek() {
+            println!("current token {:?}", elem);
             if let Some(child) = branch.get_child(elem) {
                 branch = child;
                 if let Some(val) = branch.output.clone() {
@@ -148,10 +166,6 @@ where
                 }
                 sequence.next();
                 ndx += 1;
-            } else if self.can_be_epsilon.get(*elem).is_some() {
-                sequence.next();
-                ndx += 1;
-                continue;
             } else {
                 return ret_sequence;
             }

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod token;
 mod tree;
 mod parser;
@@ -216,18 +218,41 @@ fn expression2() -> Vec<Expression>
     ]
 }
 
+fn get_rules_test() -> Vec<Rule<Expression>> {
+    vec![
+        // 01
+        Rule::new(Expression::STMT, vec![]),
+        Rule::new(
+            Expression::CODE,
+            vec![
+                Expression::STMT,
+                Expression::Token(Token::Vtype),
+                Expression::Token(Token::Id),
+                Expression::Token(Token::Ponctuation(Ponctuation::Semi)),
+            ],
+        ),
+        Rule::new(
+            Expression::STMT,
+            vec![Expression::Token(Token::Comp)],
+        ),
+    ]
+}
+
+fn expression_test_rule() -> Vec<Expression>
+{
+    vec![
+        // Expression::Token(Token::Comp),
+        Expression::Token(Token::Vtype),
+        Expression::Token(Token::Id),
+        Expression::Token(Token::Ponctuation(Ponctuation::Semi)),
+    ]
+}
+
 fn main() {
     let mut parser = Parser::<Expression>::new();
 
-    parser.add_rules(get_rules());
-    let mut expr = expression1();
+    parser.add_rules(get_rules_test());
+    let mut expr = expression_test_rule();
     parser.parse_sequence(&mut expr);
     println!("{:?}", expr);
-    expr = expression2();
-    parser.parse_sequence(&mut expr);
-    println!("{:?}", expr);
-    // for expr in expression() {
-    //     parser.push_expr(expr);
-    // }
-    // println!("{}", tree);
 }
