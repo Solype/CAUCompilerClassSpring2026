@@ -4,8 +4,6 @@ use std::{
     hash::Hash,
 };
 
-use crate::tree::TreeNode;
-
 #[derive(Debug)]
 pub struct Rule<T>
 where

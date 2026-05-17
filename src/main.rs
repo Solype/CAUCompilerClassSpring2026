@@ -1,17 +1,14 @@
+mod input;
 mod parser;
 mod token;
 mod tree;
-use std::{
-    env,
-    fmt::format,
-    fs,
-    io::{self, Read},
-    str::FromStr,
-};
 
 use token::*;
 
-use crate::parser::{Parser, Rule};
+use crate::{
+    input::read_input,
+    parser::{Parser, Rule},
+};
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
 pub enum Expression {
@@ -262,52 +259,6 @@ fn expression2() -> Vec<Expression> {
         Expression::Token(Token::from(TokenType::Num)),
         Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
     ];
-}
-
-fn parse_token(buffer: &String) -> Vec<Token> {
-    let mut tokens: Vec<Token> = vec![];
-
-    let mut col;
-    for (line, line_buffer) in buffer.split('\n').enumerate() {
-        col = 1;
-        let mut line_tokens = buffer
-            .split_whitespace()
-            .map(|s| {
-                let token = Token {
-                    typ: TokenType::from_str(s).expect(
-                        format!("Error while parsing token at {} {}", line + 1, col).as_str(),
-                    ),
-                    metadata: Some(Metadata {
-                        span: (line + 1, col),
-                        line_str: String::from(line_buffer),
-                    }),
-                };
-                col += s.len();
-                token
-            })
-            .collect();
-        tokens.append(&mut line_tokens);
-    }
-
-    tokens
-}
-
-fn read_input() -> String {
-    let args: Vec<String> = env::args().collect();
-
-    let mut buffer = String::new();
-    if args.len() > 1 {
-        let file_path = &args[1];
-
-        let mut file = fs::File::open(file_path).unwrap();
-
-        file.read_to_string(&mut buffer).unwrap();
-    } else {
-        let mut stdin = io::stdin();
-        stdin.read_to_string(&mut buffer).unwrap();
-    }
-
-    buffer
 }
 
 fn get_rules_test() -> Vec<Rule<Expression>> {

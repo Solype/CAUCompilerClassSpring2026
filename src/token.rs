@@ -1,4 +1,4 @@
-use std::fmt::{self, write};
+use std::fmt::{self};
 use std::hash::Hash;
 use std::str::FromStr;
 
@@ -109,3 +109,31 @@ impl Hash for Token {
 
 #[derive(Debug)]
 pub struct InvalidToken(pub String);
+
+pub fn parse_token(buffer: &String) -> Vec<Token> {
+    let mut tokens: Vec<Token> = vec![];
+
+    let mut col;
+    for (line, line_buffer) in buffer.split('\n').enumerate() {
+        col = 1;
+        let mut line_tokens = buffer
+            .split_whitespace()
+            .map(|s| {
+                let token = Token {
+                    typ: TokenType::from_str(s).expect(
+                        format!("Error while parsing token at {} {}", line + 1, col).as_str(),
+                    ),
+                    metadata: Some(Metadata {
+                        span: (line + 1, col),
+                        line_str: String::from(line_buffer),
+                    }),
+                };
+                col += s.len();
+                token
+            })
+            .collect();
+        tokens.append(&mut line_tokens);
+    }
+
+    tokens
+}

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{Expression, token::Token};
+use crate::Expression;
 use std::fmt::{self, Debug, Error, Write};
 
 #[derive(Debug, Clone)]
