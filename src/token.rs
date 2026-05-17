@@ -115,13 +115,25 @@ pub fn parse_token(buffer: &String) -> Vec<Token> {
 
     let mut col;
     for (line, line_buffer) in buffer.split('\n').enumerate() {
-        col = 1;
-        let mut line_tokens = buffer
-            .split_whitespace()
+        col = 0;
+        let mut line_tokens = line_buffer
+            .split(&[' ', '\t'])
             .map(|s| {
+                col += 1;
+                if s == "" {
+                    return None;
+                }
+
                 let token = Token {
                     typ: TokenType::from_str(s).expect(
-                        format!("Error while parsing token at {} {}", line + 1, col).as_str(),
+                        format!(
+                            "Error while parsing token at {} {}:\n{}\n{}^\n",
+                            line + 1,
+                            col,
+                            line_buffer,
+                            " ".repeat(col - 1)
+                        )
+                        .as_str(),
                     ),
                     metadata: Some(Metadata {
                         span: (line + 1, col),
@@ -129,8 +141,9 @@ pub fn parse_token(buffer: &String) -> Vec<Token> {
                     }),
                 };
                 col += s.len();
-                token
+                Some(token)
             })
+            .flatten()
             .collect();
         tokens.append(&mut line_tokens);
     }
