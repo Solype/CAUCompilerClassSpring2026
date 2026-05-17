@@ -1,5 +1,5 @@
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Branch {
     If,
     Else,
@@ -7,13 +7,13 @@ pub enum Branch {
     Return
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Ponctuation {
     Semi,
     Comma,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Nesting {
     Lparen,
     Rparen,
@@ -21,7 +21,7 @@ pub enum Nesting {
     Rbrace,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
     Vtype,
     Literal,
