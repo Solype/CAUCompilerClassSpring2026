@@ -1,46 +1,49 @@
 #![allow(dead_code)]
 
-use crate::token::Token;
-use std::{
-    fmt::{self, Error, Write},
-};
-
+use crate::{Expression, token::Token};
+use std::fmt::{self, Debug, Error, Write};
 
 #[derive(Debug, Clone)]
 pub struct Tree {
-    token: Token,
-    left : Option<Box<Tree>>,
-    right: Option<Box<Tree>>,
+    start: Option<TreeNode<Expression>>,
+}
+#[derive(Debug, Clone)]
+pub struct TreeNode<T>
+where
+    T: Debug,
+{
+    pub value: T,
+    pub children: Vec<TreeNode<T>>,
+}
+impl Default for Tree {
+    fn default() -> Self {
+        Tree { start: None }
+    }
 }
 
-
-impl Tree {
-    pub fn new(token: Token, left: Option<Tree>, right: Option<Tree>) -> Self {
-        Tree {
-            token: token,
-            left: left.map(Box::new),
-            right: right.map(Box::new),
-        }
+impl<T> TreeNode<T>
+where
+    T: Debug,
+{
+    pub fn new(value: T, children: Vec<TreeNode<T>>) -> Self {
+        TreeNode { value, children }
     }
+    fn private_display(&self, out: &mut impl Write, nesting: usize) -> fmt::Result {
+        write!(out, "{}{:?}", "  ".repeat(nesting), self.value)?;
+        for child in &self.children {
+            write!(out, "\n")?;
+            child.private_display(out, nesting + 1)?;
+        }
 
-    fn private_display( &self, out: &mut impl Write, nesting: usize, ) -> fmt::Result
-    {
-        write!(out, "{}{:?}", "  ".repeat(nesting), self.token)?;
-        if let Some(ref left) = self.left {
-            write!(out, "\n")?;
-            left.private_display(out, nesting + 1)?;
-        }
-        if let Some(ref right) = self.right {
-            write!(out, "\n")?;
-            right.private_display(out, nesting + 1)?;
-        }
         Ok(())
     }
 }
 
-impl fmt::Display for Tree {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-    {
+impl<T> fmt::Display for TreeNode<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if Ok(()) == self.private_display(f, 0) {
             fmt::Result::Ok(())
         } else {
