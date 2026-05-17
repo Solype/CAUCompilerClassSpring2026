@@ -281,6 +281,15 @@ fn get_rules_test() -> Vec<Rule<Expression>> {
     ]
 }
 
+fn expression_test_rule() -> Vec<Expression> {
+    vec![
+        // Expression::Token(Token::Comp),
+        Expression::Token(Token::from(TokenType::Vtype)),
+        Expression::Token(Token::from(TokenType::Id)),
+        Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
+    ]
+}
+
 fn main() {
     let buffer = read_input();
 
@@ -296,10 +305,6 @@ fn main() {
         .map(|t| Expression::Token(t.clone()))
         .collect();
     println!("before {:?}", sequence);
-
     parser.parse_sequence(&mut sequence);
-
     println!("after {:?}", sequence)
-    // parser.display_tree();
-    // println!("{}", tree);
 }
