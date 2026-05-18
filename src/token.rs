@@ -82,10 +82,15 @@ impl fmt::Debug for Metadata {
         f.debug_tuple("").finish()
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Token {
     pub typ: TokenType,
     pub metadata: Option<Metadata>,
+}
+impl fmt::Debug for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.typ)
+    }
 }
 impl From<TokenType> for Token {
     fn from(value: TokenType) -> Self {

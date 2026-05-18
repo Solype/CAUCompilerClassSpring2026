@@ -272,17 +272,16 @@ fn get_rules_test() -> Vec<Rule<Expression>> {
 
 fn main() {
     let buffer = read_input();
-
-    let mut tokens = parse_token(&buffer);
+    let tokens = parse_token(&buffer);
+    let sequence = tokens.iter().map(|t| Expression::Token(t.clone())).collect();
 
     let mut parser = Parser::<Expression>::new();
     parser.add_rules(get_rules());
+    parser.display_rules();
 
-    let mut sequence = tokens
-        .iter_mut()
-        .map(|t| Expression::Token(t.clone()))
-        .collect();
     println!("before {:?}", sequence);
-    parser.parse_sequence(&mut sequence);
-    println!("after {:?}", sequence)
+    let parsed_tree = parser.parse_sequence(sequence);
+    for elem in parsed_tree {
+        elem.display();
+    }
 }

@@ -1,1 +1,1 @@
-vtype id semi
+comp vtype id semi
