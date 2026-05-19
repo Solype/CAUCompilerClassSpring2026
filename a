@@ -1,107 +1,201 @@
-warning: function `get_rules_test` is never used
-   --> src/main.rs:254:4
-    |
-254 | fn get_rules_test() -> Vec<Rule<Expression>> {
-    |    ^^^^^^^^^^^^^^
-    |
-    = note: `#[warn(dead_code)]` on by default
-
-warning: method `display` is never used
-  --> src/parser.rs:65:12
-   |
-45 | / impl<T> RuleTreeBranch<T>
-46 | | where
-47 | |     T: PartialEq + Default + Clone + Hash + Eq + Debug,
-   | |_______________________________________________________- method in this implementation
-...
-65 |       pub fn display(&self) {
-   |              ^^^^^^^
-
-warning: method `display` is never used
-   --> src/parser.rs:146:12
-    |
- 89 | / impl<T> RuleTree<T>
- 90 | | where
- 91 | |     T: PartialEq + Default + Clone + Hash + Eq + Debug,
-    | |_______________________________________________________- method in this implementation
-...
-146 |       pub fn display(&self) -> &Self
-    |              ^^^^^^^
-
-warning: method `display_rules` is never used
-   --> src/parser.rs:285:12
-    |
-237 | / impl<T> Parser<T>
-238 | | where
-239 | |     T: PartialEq + Default + Clone + Debug + Hash + Eq,
-    | |_______________________________________________________- method in this implementation
-...
-285 |       pub fn display_rules(&self) -> &Self
-    |              ^^^^^^^^^^^^^
-
-warning: `tree_analyzer` (bin "tree_analyzer") generated 4 warnings
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
-     Running `target/debug/tree_analyzer ./tests/test_vdecl.txt`
-adding the rule : CODE <- VDECL ;
-adding the rule : CODE <- VDECL CODE ;
-adding the rule : CODE <- FDECL ;
-adding the rule : CODE <- FDECL CODE ;
-adding the rule : CODE <- CDECL ;
+adding the rule : CODE <- DECL CODE ;
 adding the rule : CODE <- CDECL CODE ;
+adding the rule : DECL <- VDECL ;
+adding the rule : DECL <- FDECL ;
+adding the rule : FDECL <- Token(Vtype) Token(Id) Token(Nesting(Lparen)) ARG Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK RETURN Token(Nesting(Rbrace)) ;
 adding the rule : VDECL <- Token(Vtype) Token(Id) Token(Ponctuation(Semi)) ;
 adding the rule : VDECL <- Token(Vtype) ASSIGN Token(Ponctuation(Semi)) ;
 adding the rule : ASSIGN <- Token(Id) Token(Assign) RHS ;
-adding the rule : RHS <- HIGHOP ;
+adding the rule : RHS <- EXPR ;
 adding the rule : RHS <- Token(Literal) ;
 adding the rule : RHS <- Token(Character) ;
 adding the rule : RHS <- Token(Boolstr) ;
-adding the rule : HIGHOP <- HIGHOP Token(Addsub) LOWOP ;
-adding the rule : HIGHOP <- LOWOP ;
-adding the rule : LOWOP <- LOWOP Token(Multdiv) OPERAND ;
-adding the rule : OPERAND <- Token(Nesting(Lparen)) HIGHOP Token(Nesting(Rparen)) ;
-adding the rule : OPERAND <- Token(Id) ;
-adding the rule : OPERAND <- Token(Id) ;
-adding the rule : FDECL <- Token(Vtype) Token(Nesting(Lparen)) Token(Nesting(Rparen)) Token(Nesting(Lbrace)) RETURN Token(Nesting(Rbrace)) ;
-adding the rule : FDECL <- Token(Vtype) Token(Nesting(Lparen)) Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK RETURN Token(Nesting(Rbrace)) ;
-adding the rule : FDECL <- Token(Vtype) Token(Nesting(Lparen)) Token(Nesting(Rparen)) Token(Nesting(Lbrace)) RETURN Token(Nesting(Rbrace)) ;
-adding the rule : FDECL <- Token(Vtype) Token(Nesting(Lparen)) ARG Token(Nesting(Rparen)) Token(Nesting(Lbrace)) RETURN Token(Nesting(Rbrace)) ;
-adding the rule : FDECL <- Token(Vtype) Token(Nesting(Lparen)) ARG Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK RETURN Token(Nesting(Rbrace)) ;
-adding the rule : ARG <- Token(Vtype) Token(Vtype) ;
-adding the rule : ARG <- Token(Vtype) Token(Vtype) MOREARGS ;
-adding the rule : MOREARGS <- Token(Ponctuation(Comma)) Token(Vtype) Token(Vtype) ;
-adding the rule : MOREARGS <- Token(Ponctuation(Comma)) Token(Vtype) Token(Vtype) MOREARGS ;
-adding the rule : BLOCK <- ;
-adding the rule : BLOCK <- BLOCK ;
-adding the rule : BLOCK <- ;
-adding the rule : BLOCK <- STMT ;
+adding the rule : EXPR <- EXPR Token(Addsub) EXPRPRIME ;
+adding the rule : EXPR <- EXPRPRIME ;
+adding the rule : EXPRPRIME <- EXPRPRIME Token(Multdiv) EXPRDOUBLEPRIME ;
+adding the rule : EXPRPRIME <- EXPRDOUBLEPRIME ;
+adding the rule : EXPRDOUBLEPRIME <- Token(Nesting(Lparen)) EXPR Token(Nesting(Rparen)) ;
+adding the rule : EXPRDOUBLEPRIME <- Token(Id) ;
+adding the rule : EXPRDOUBLEPRIME <- Token(Num) ;
+adding the rule : ARG <- Token(Vtype) Token(Id) MOREARGS ;
+adding the rule : MOREARGS <- Token(Ponctuation(Comma)) Token(Vtype) Token(Id) MOREARGS ;
 adding the rule : BLOCK <- STMT BLOCK ;
 adding the rule : STMT <- VDECL ;
-[93m[WARNING][0m Rule ignored because another rule already matches this sequence.
 adding the rule : STMT <- ASSIGN Token(Ponctuation(Semi)) ;
-adding the rule : STMT <- Token(Branchs(If)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ;
-adding the rule : STMT <- Token(Branchs(If)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ELSE ;
-adding the rule : STMT <- Token(Branchs(If)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ;
-adding the rule : STMT <- Token(Branchs(If)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK Token(Nesting(Rbrace)) ;
 adding the rule : STMT <- Token(Branchs(If)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK Token(Nesting(Rbrace)) ELSE ;
-adding the rule : STMT <- Token(Branchs(While)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ;
 adding the rule : STMT <- Token(Branchs(While)) Token(Nesting(Lparen)) COND Token(Nesting(Rparen)) Token(Nesting(Lbrace)) BLOCK Token(Nesting(Rbrace)) ;
-adding the rule : COND <- COND Token(Comp) RCOND ;
-adding the rule : COND <- RCOND ;
-adding the rule : RCOND <- Token(Boolstr) ;
-[93m[WARNING][0m Rule ignored because another rule already matches this sequence.
-adding the rule : ELSE <- Token(Branchs(Else)) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ;
+adding the rule : COND <- COND Token(Comp) CONDPRIME ;
+adding the rule : COND <- CONDPRIME ;
+adding the rule : CONDPRIME <- Token(Boolstr) ;
 adding the rule : ELSE <- Token(Branchs(Else)) Token(Nesting(Lbrace)) BLOCK Token(Nesting(Rbrace)) ;
 adding the rule : RETURN <- Token(Branchs(Return)) RHS Token(Ponctuation(Semi)) ;
-adding the rule : CDECL <- Token(Class) Token(Vtype) Token(Nesting(Lbrace)) Token(Nesting(Rbrace)) ;
-adding the rule : CDECL <- Token(Class) Token(Vtype) Token(Nesting(Lbrace)) ODECL Token(Nesting(Rbrace)) ;
-adding the rule : ODECL <- VDECL ;
-[93m[WARNING][0m Rule ignored because another rule already matches this sequence.
+adding the rule : CDECL <- Token(Class) Token(Id) Token(Nesting(Lbrace)) ODECL Token(Nesting(Rbrace)) ;
 adding the rule : ODECL <- VDECL ODECL ;
-adding the rule : ODECL <- FDECL ;
-[93m[WARNING][0m Rule ignored because another rule already matches this sequence.
 adding the rule : ODECL <- FDECL ODECL ;
-before [Token(Comp), Token(Vtype), Token(Id), Token(Ponctuation(Semi))]
-└── Token(Comp)
-└── Token(Vtype)
-└── Token(Id)
-└── Token(Ponctuation(Semi))
+Tree:
+    ├── ASSIGN
+    │   └── Token(Ponctuation(Semi)) -> STMT
+    ├── VDECL -> DECL
+    │   └── ODECL -> ODECL
+    ├── Token(Id) -> EXPRDOUBLEPRIME
+    │   └── Token(Assign)
+    │       └── RHS -> ASSIGN
+    ├── Token(Literal) -> RHS
+    ├── Token(Branchs(Else))
+    │   └── Token(Nesting(Lbrace))
+    │       └── BLOCK
+    │           └── Token(Nesting(Rbrace)) -> ELSE
+    ├── DECL
+    │   └── CODE -> CODE
+    ├── CDECL
+    │   └── CODE -> CODE
+    ├── STMT
+    │   └── BLOCK -> BLOCK
+    ├── Token(Branchs(Return))
+    │   └── RHS
+    │       └── Token(Ponctuation(Semi)) -> RETURN
+    ├── Token(Class)
+    │   └── Token(Id)
+    │       └── Token(Nesting(Lbrace))
+    │           └── ODECL
+    │               └── Token(Nesting(Rbrace)) -> CDECL
+    ├── Token(Nesting(Lparen))
+    │   └── EXPR
+    │       └── Token(Nesting(Rparen)) -> EXPRDOUBLEPRIME
+    ├── FDECL -> DECL
+    │   └── ODECL -> ODECL
+    ├── Token(Boolstr) -> RHS
+    ├── EXPR -> RHS
+    │   └── Token(Addsub)
+    │       └── EXPRPRIME -> EXPR
+    ├── EXPRPRIME -> EXPR
+    │   └── Token(Multdiv)
+    │       └── EXPRDOUBLEPRIME -> EXPRPRIME
+    ├── Token(Ponctuation(Comma))
+    │   └── Token(Vtype)
+    │       └── Token(Id)
+    │           └── MOREARGS -> MOREARGS
+    ├── Token(Branchs(If))
+    │   └── Token(Nesting(Lparen))
+    │       └── COND
+    │           └── Token(Nesting(Rparen))
+    │               └── Token(Nesting(Lbrace))
+    │                   └── BLOCK
+    │                       └── Token(Nesting(Rbrace))
+    │                           └── ELSE -> STMT
+    ├── COND
+    │   └── Token(Comp)
+    │       └── CONDPRIME -> COND
+    ├── EXPRDOUBLEPRIME -> EXPRPRIME
+    ├── Token(Branchs(While))
+    │   └── Token(Nesting(Lparen))
+    │       └── COND
+    │           └── Token(Nesting(Rparen))
+    │               └── Token(Nesting(Lbrace))
+    │                   └── BLOCK
+    │                       └── Token(Nesting(Rbrace)) -> STMT
+    ├── CONDPRIME -> COND
+    ├── Token(Character) -> RHS
+    ├── Token(Vtype)
+    │   ├── ASSIGN
+    │   │   └── Token(Ponctuation(Semi)) -> VDECL
+    │   └── Token(Id)
+    │       ├── Token(Nesting(Lparen))
+    │       │   └── ARG
+    │       │       └── Token(Nesting(Rparen))
+    │       │           └── Token(Nesting(Lbrace))
+    │       │               └── BLOCK
+    │       │                   └── RETURN
+    │       │                       └── Token(Nesting(Rbrace)) -> FDECL
+    │       ├── Token(Ponctuation(Semi)) -> VDECL
+    │       └── MOREARGS -> ARG
+    └── Token(Num) -> EXPRDOUBLEPRIME
+before [Token(Vtype), Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace))]
+SEQUENCE : [Token(Vtype), Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace))]
+Token(Vtype) ::: [ Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+stack was empty
+
+
+
+elem : ParsedTreeBranch { value: Token(Vtype), childrens: [] }
+current rule tree:
+Token(Id) ::: [ Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Id), childrens: [] }
+current rule tree:
+Token(Nesting(Lparen)) ::: [ Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Nesting(Lparen)), childrens: [] }
+current rule tree:
+Token(Nesting(Rparen)) ::: [ Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Nesting(Rparen)), childrens: [] }
+current rule tree:
+Token(Nesting(Lbrace)) ::: [ Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Nesting(Lbrace)), childrens: [] }
+current rule tree:
+Token(Branchs(If)) ::: [ Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Branchs(If)), childrens: [] }
+current rule tree:
+    └── RETURN
+        └── Token(Nesting(Rbrace)) -> FDECL
+error found
+Token(Branchs(If)) ::: [ Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Branchs(If)), childrens: [] }
+current rule tree:
+Token(Nesting(Lparen)) ::: [ Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Nesting(Lparen)), childrens: [] }
+current rule tree:
+Token(Boolstr) ::: [ Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Boolstr), childrens: [] }
+current rule tree:
+    └── COND
+        └── Token(Nesting(Rparen))
+            └── Token(Nesting(Lbrace))
+                └── BLOCK
+                    └── Token(Nesting(Rbrace))
+                        └── ELSE -> STMT
+error found
+Token(Boolstr) ::: [ Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: Token(Boolstr), childrens: [] }
+current rule tree:
+reduce found
+reducing :
+to : RHS
+RHS ::: [ Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
+
+
+
+elem : ParsedTreeBranch { value: RHS, childrens: [] }
+current rule tree:
+    └── COND
+        └── Token(Nesting(Rparen))
+            └── Token(Nesting(Lbrace))
+                └── BLOCK
+                    └── Token(Nesting(Rbrace))
+                        └── ELSE -> STMT
+error found

@@ -7,7 +7,7 @@ use token::*;
 
 use crate::{
     input::read_input,
-    parser::{Parser, Rule},
+    parser::{parser::Parser, Rule},
 };
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
@@ -19,6 +19,8 @@ pub enum Expression {
     ASSIGN,
     RHS,
     EXPR,
+    EXPRPRIME,
+    EXPRDOUBLEPRIME,
     HIGHOP,
     LOWOP,
     OPERAND,
@@ -28,107 +30,57 @@ pub enum Expression {
     BLOCK,
     STMT,
     COND,
+    CONDPRIME,
     RCOND,
     ELSE,
     RETURN,
     CDECL,
+    DECL,
     ODECL,
 }
 
 fn get_rules() -> Vec<Rule<Expression>> {
     vec![
-        // epsilon
-        Rule::new(Expression::CODE, vec![]),
-        Rule::new(Expression::ARG, vec![]),
-        Rule::new(Expression::MOREARGS, vec![]),
-        Rule::new(Expression::BLOCK, vec![]),
-        Rule::new(Expression::ELSE, vec![]),
-        Rule::new(Expression::ODECL, vec![]),
-        Rule::new(Expression::STMT, vec![]),
-        // 01
-        Rule::new(Expression::CODE, vec![Expression::VDECL, Expression::CODE]),
-        Rule::new(Expression::CODE, vec![Expression::FDECL, Expression::CODE]),
-        Rule::new(Expression::CODE, vec![Expression::CDECL, Expression::CODE]),
-        // 02
         Rule::new(
-            Expression::VDECL,
+            Expression::CODE,
             vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Id)),
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
+                Expression::DECL,
+                Expression::CODE,
             ],
         ),
+
         Rule::new(
-            Expression::VDECL,
+            Expression::CODE,
             vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::ASSIGN,
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
+                Expression::CDECL,
+                Expression::CODE,
             ],
         ),
-        // 03
+
         Rule::new(
-            Expression::ASSIGN,
+            Expression::CODE,
+            vec![],
+        ),
+
+        Rule::new(
+            Expression::DECL,
             vec![
-                Expression::Token(Token::from(TokenType::Id)),
-                Expression::Token(Token::from(TokenType::Assign)),
-                Expression::RHS,
+                Expression::VDECL,
             ],
         ),
-        // 04
-        Rule::new(Expression::RHS, vec![Expression::HIGHOP]),
+
         Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Literal))],
-        ),
-        Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Character))],
-        ),
-        Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Boolstr))],
-        ),
-        // 05
-        Rule::new(
-            Expression::HIGHOP,
+            Expression::DECL,
             vec![
-                Expression::HIGHOP,
-                Expression::Token(Token::from(TokenType::Addsub)),
-                Expression::LOWOP,
+                Expression::FDECL,
             ],
         ),
-        Rule::new(Expression::HIGHOP, vec![Expression::LOWOP]),
-        Rule::new(
-            Expression::LOWOP,
-            vec![
-                Expression::LOWOP,
-                Expression::Token(Token::from(TokenType::Multdiv)),
-                Expression::OPERAND,
-            ],
-        ),
-        // 06
-        Rule::new(
-            Expression::OPERAND,
-            vec![
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
-                Expression::HIGHOP,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
-            ],
-        ),
-        Rule::new(
-            Expression::OPERAND,
-            vec![Expression::Token(Token::from(TokenType::Id))],
-        ),
-        Rule::new(
-            Expression::OPERAND,
-            vec![Expression::Token(Token::from(TokenType::Id))],
-        ),
-        // 07
+
         Rule::new(
             Expression::FDECL,
             vec![
                 Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::Token(Token::from(TokenType::Id)),
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
                 Expression::ARG,
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
@@ -138,29 +90,166 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
             ],
         ),
-        // 08
+
+        Rule::new(
+            Expression::VDECL,
+            vec![
+                Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::Token(Token::from(TokenType::Id)),
+                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
+            ],
+        ),
+
+        Rule::new(
+            Expression::VDECL,
+            vec![
+                Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::ASSIGN,
+                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
+            ],
+        ),
+
+        Rule::new(
+            Expression::ASSIGN,
+            vec![
+                Expression::Token(Token::from(TokenType::Id)),
+                Expression::Token(Token::from(TokenType::Assign)),
+                Expression::RHS,
+            ],
+        ),
+
+        Rule::new(
+            Expression::RHS,
+            vec![
+                Expression::EXPR,
+            ],
+        ),
+
+        Rule::new(
+            Expression::RHS,
+            vec![
+                Expression::Token(Token::from(TokenType::Literal)),
+            ],
+        ),
+
+        Rule::new(
+            Expression::RHS,
+            vec![
+                Expression::Token(Token::from(TokenType::Character)),
+            ],
+        ),
+
+        Rule::new(
+            Expression::RHS,
+            vec![
+                Expression::Token(Token::from(TokenType::Boolstr)),
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPR,
+            vec![
+                Expression::EXPR,
+                Expression::Token(Token::from(TokenType::Addsub)),
+                Expression::EXPRPRIME,
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPR,
+            vec![
+                Expression::EXPRPRIME,
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPRPRIME,
+            vec![
+                Expression::EXPRPRIME,
+                Expression::Token(Token::from(TokenType::Multdiv)),
+                Expression::EXPRDOUBLEPRIME,
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPRPRIME,
+            vec![
+                Expression::EXPRDOUBLEPRIME,
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPRDOUBLEPRIME,
+            vec![
+                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
+                Expression::EXPR,
+                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPRDOUBLEPRIME,
+            vec![
+                Expression::Token(Token::from(TokenType::Id)),
+            ],
+        ),
+
+        Rule::new(
+            Expression::EXPRDOUBLEPRIME,
+            vec![
+                Expression::Token(Token::from(TokenType::Num)),
+            ],
+        ),
+
         Rule::new(
             Expression::ARG,
             vec![
                 Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::Token(Token::from(TokenType::Id)),
                 Expression::MOREARGS,
             ],
         ),
-        // 09
+
+        Rule::new(
+            Expression::ARG,
+            vec![],
+        ),
+
         Rule::new(
             Expression::MOREARGS,
             vec![
                 Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Comma))),
                 Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::Token(Token::from(TokenType::Id)),
                 Expression::MOREARGS,
             ],
         ),
-        // 10
-        Rule::new(Expression::BLOCK, vec![Expression::STMT, Expression::BLOCK]),
-        // 11
-        Rule::new(Expression::STMT, vec![Expression::VDECL]),
+
+        Rule::new(
+            Expression::MOREARGS,
+            vec![],
+        ),
+
+        Rule::new(
+            Expression::BLOCK,
+            vec![
+                Expression::STMT,
+                Expression::BLOCK,
+            ],
+        ),
+
+        Rule::new(
+            Expression::BLOCK,
+            vec![],
+        ),
+
+        Rule::new(
+            Expression::STMT,
+            vec![
+                Expression::VDECL,
+            ],
+        ),
+
         Rule::new(
             Expression::STMT,
             vec![
@@ -168,7 +257,7 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
             ],
         ),
-        // 12
+
         Rule::new(
             Expression::STMT,
             vec![
@@ -182,7 +271,7 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::ELSE,
             ],
         ),
-        // 13
+
         Rule::new(
             Expression::STMT,
             vec![
@@ -195,21 +284,30 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
             ],
         ),
-        // 14
+
         Rule::new(
             Expression::COND,
             vec![
                 Expression::COND,
                 Expression::Token(Token::from(TokenType::Comp)),
-                Expression::RCOND,
+                Expression::CONDPRIME,
             ],
         ),
-        Rule::new(Expression::COND, vec![Expression::RCOND]),
+
         Rule::new(
-            Expression::RCOND,
-            vec![Expression::Token(Token::from(TokenType::Boolstr))],
+            Expression::COND,
+            vec![
+                Expression::CONDPRIME,
+            ],
         ),
-        // 15
+
+        Rule::new(
+            Expression::CONDPRIME,
+            vec![
+                Expression::Token(Token::from(TokenType::Boolstr)),
+            ],
+        ),
+
         Rule::new(
             Expression::ELSE,
             vec![
@@ -219,7 +317,12 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
             ],
         ),
-        // 16
+
+        Rule::new(
+            Expression::ELSE,
+            vec![],
+        ),
+
         Rule::new(
             Expression::RETURN,
             vec![
@@ -228,29 +331,40 @@ fn get_rules() -> Vec<Rule<Expression>> {
                 Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
             ],
         ),
-        // 17
+
         Rule::new(
             Expression::CDECL,
             vec![
                 Expression::Token(Token::from(TokenType::Class)),
-                Expression::Token(Token::from(TokenType::Vtype)),
+                Expression::Token(Token::from(TokenType::Id)),
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
                 Expression::ODECL,
                 Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
             ],
         ),
-        // 18
+
         Rule::new(
             Expression::ODECL,
-            vec![Expression::VDECL, Expression::ODECL],
+            vec![
+                Expression::VDECL,
+                Expression::ODECL,
+            ],
         ),
+
         Rule::new(
             Expression::ODECL,
-            vec![Expression::FDECL, Expression::ODECL],
+            vec![
+                Expression::FDECL,
+                Expression::ODECL,
+            ],
+        ),
+
+        Rule::new(
+            Expression::ODECL,
+            vec![],
         ),
     ]
 }
-
 fn get_rules_test() -> Vec<Rule<Expression>> {
     vec![
         // 01
@@ -280,8 +394,5 @@ fn main() {
     parser.display_rules();
 
     println!("before {:?}", sequence);
-    let parsed_tree = parser.parse_sequence(sequence);
-    for elem in parsed_tree {
-        elem.display();
-    }
+    parser.parse_sequence(sequence);
 }
