@@ -259,6 +259,51 @@ fn get_rules() -> slr::parser::Rules {
         ]),
     }
 }
+
+fn get_test_rules() -> slr::parser::Rules {
+    slr::parser::Rules {
+        start: NonterminalSymbol::Code,
+        productions: Productions::from([
+            (
+                NonterminalSymbol::Code,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::VDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::Code),
+                    ],
+                    vec![],
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Nonterminal(NonterminalSymbol::Assign),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::VDecl,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Terminal(TerminalSymbol::Id),
+                        Symbol::Terminal(TerminalSymbol::Semi),
+                    ],
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Nonterminal(NonterminalSymbol::Assign),
+                        Symbol::Terminal(TerminalSymbol::Semi),
+                    ],
+                ],
+            ),
+            (
+                NonterminalSymbol::Assign,
+                vec![vec![
+                    Symbol::Terminal(TerminalSymbol::Id),
+                    Symbol::Terminal(TerminalSymbol::Assign),
+                ]],
+            ),
+        ]),
+    }
+}
 fn main() {
-    let parser = slr::parser::LRTable::new(&get_rules());
+    let parser = slr::parser::LRTable::new(&get_test_rules());
 }

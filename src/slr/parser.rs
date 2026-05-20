@@ -1,25 +1,30 @@
+use core::fmt;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs::Metadata,
     hash::Hash,
+    iter::Map,
+    os::linux::raw::stat,
 };
 
-type State = usize;
+use indexmap::IndexSet;
+
+type StateId = usize;
 
 enum Action {
-    State(State),
-    Return(State),
+    Shift(StateId),
+    Reduce(StateId),
     Accept,
 }
 
-type Goto = State;
+type Goto = StateId;
 
 struct Token {
     typ: TerminalSymbol,
     metadata: Metadata,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub enum TerminalSymbol {
     Epsilon,
     Vtype,
@@ -47,8 +52,9 @@ pub enum TerminalSymbol {
     Undefined,
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub enum NonterminalSymbol {
+    Start,
     Code,
     VDecl,
     Assign,
@@ -69,7 +75,7 @@ pub enum NonterminalSymbol {
     ODecl,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub enum Symbol {
     Terminal(TerminalSymbol),
     Nonterminal(NonterminalSymbol),
@@ -78,7 +84,8 @@ type Symbols = Vec<Symbol>;
 
 type Row<T, K> = HashMap<T, K>;
 
-pub type Productions = HashMap<NonterminalSymbol, Vec<Symbols>>;
+pub type Production = Vec<Symbols>;
+pub type Productions = BTreeMap<NonterminalSymbol, Production>;
 pub struct Rules {
     pub start: NonterminalSymbol,
     pub productions: Productions,
@@ -87,8 +94,8 @@ pub struct Rules {
 type FirstSet = HashSet<TerminalSymbol>;
 type FollowSet = HashSet<TerminalSymbol>;
 
-type FirstTable = HashMap<NonterminalSymbol, FirstSet>;
-type FollowTable = HashMap<NonterminalSymbol, FollowSet>;
+type FirstTable = BTreeMap<NonterminalSymbol, FirstSet>;
+type FollowTable = BTreeMap<NonterminalSymbol, FollowSet>;
 
 #[derive(Debug)]
 pub struct FirstFollowSets {
@@ -106,7 +113,7 @@ impl FirstFollowSets {
     }
 
     fn _build_first(rules: &Rules) -> FirstTable {
-        let mut table = HashMap::new();
+        let mut table = FirstTable::new();
         for nt in rules.productions.keys() {
             table.insert(nt.clone(), FirstSet::new());
         }
@@ -143,7 +150,7 @@ impl FirstFollowSets {
     }
 
     fn _build_follow(first_table: &FirstTable, rules: &Rules) -> FollowTable {
-        let mut table = HashMap::new();
+        let mut table = FollowTable::new();
         for nt in rules.productions.keys() {
             table.insert(
                 nt.clone(),
@@ -200,6 +207,156 @@ impl FirstFollowSets {
         table
     }
 }
+
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+pub struct LRItem {
+    expr: NonterminalSymbol,
+    rule: Symbols,
+    dot: usize,
+}
+impl fmt::Display for LRItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?} ->", self.expr)?;
+
+        for (i, symbol) in self.rule.iter().enumerate() {
+            if i == self.dot {
+                write!(f, " .")?;
+            }
+
+            write!(f, " {:?}", symbol)?;
+        }
+
+        if self.dot == self.rule.len() {
+            write!(f, " .")?;
+        }
+
+        Ok(())
+    }
+}
+pub type State = BTreeSet<LRItem>;
+pub struct LRItems {
+    states: IndexSet<State>,
+}
+impl LRItems {
+    fn _closure_items(nt: &NonterminalSymbol, dot: usize, rules: &Rules) -> Vec<LRItem> {
+        rules
+            .productions
+            .get(&nt)
+            .unwrap()
+            .iter()
+            .map(|symbols| LRItem {
+                expr: nt.clone(),
+                rule: symbols.clone(),
+                dot: dot,
+            })
+            .collect()
+    }
+    fn _closure(nt: &NonterminalSymbol, dot: usize, rules: &Rules, mut state: &mut State) {
+        let closure_items = Self::_closure_items(nt, dot, rules);
+        let mut to_expands = vec![];
+        for item in &closure_items {
+            if state.insert(item.clone())
+                && let Some(s) = item.rule.get(dot)
+            {
+                to_expands.push(s.clone());
+            }
+        }
+
+        while !to_expands.is_empty() {
+            let Symbol::Nonterminal(nt) = to_expands.pop().unwrap() else {
+                continue;
+            };
+            Self::_closure(&nt, 0, &rules, &mut state);
+        }
+    }
+
+    fn _closure2(mut state: State, rules: &Rules) -> State {
+        let mut changed = true;
+        let mut to_add = vec![];
+        while changed {
+            changed = false;
+            for item in &state {
+                if let Some(Symbol::Nonterminal(nt)) = item.rule.get(item.dot) {
+                    to_add.extend(Self::_closure_items(nt, 0, rules));
+                }
+            }
+
+            while !to_add.is_empty() {
+                let new_item = to_add.pop().unwrap();
+                changed |= state.insert(new_item);
+            }
+        }
+
+        state
+    }
+
+    pub fn _goto(from_state: &State, symbol: &Symbol) -> State {
+        let mut new_state = State::new();
+        for item in from_state {
+            if item.rule.get(item.dot) == Some(symbol) {
+                let mut new_item = item.clone();
+                new_item.dot = item.dot + 1;
+                new_state.insert(new_item.clone());
+            }
+        }
+
+        new_state
+    }
+
+    pub fn new(rules: &Rules, follows: &FollowTable) -> Self {
+        let mut start_state = State::from([LRItem {
+            expr: NonterminalSymbol::Start,
+            rule: vec![Symbol::Nonterminal(rules.start.clone())],
+            dot: 0,
+        }]);
+
+        start_state = Self::_closure2(start_state, &rules);
+
+        let mut lr_items = LRItems {
+            states: IndexSet::from([start_state.clone()]),
+        };
+
+        let mut new_states = vec![start_state.clone()];
+        println!("state 0:");
+        for i in start_state.clone() {
+            println!("{}", i);
+        }
+
+        while !new_states.is_empty() {
+            let from_state = new_states.pop().unwrap();
+
+            let mut next_symbols = HashSet::new();
+            next_symbols.extend(
+                from_state
+                    .iter()
+                    .map(|item| item.rule.get(item.dot))
+                    .flatten(),
+            );
+            for next_symbol in next_symbols {
+                println!(
+                    "goto state {:?} symbol: {:?}\n",
+                    lr_items.states.get_index_of(&from_state),
+                    next_symbol
+                );
+                let mut new_state = Self::_goto(&from_state, next_symbol);
+                new_state = Self::_closure2(new_state, rules);
+                if lr_items.states.insert(new_state.clone()) {
+                    new_states.push(new_state.clone());
+                }
+                println!("-->> state {:?}", lr_items.states.get_index_of(&new_state),);
+                for i in new_state.clone() {
+                    println!("{}", i);
+                }
+            }
+        }
+        for state in &lr_items.states {
+            println!("{:?}", state);
+        }
+        println!("count: {:?}", lr_items.states.iter().count());
+
+        lr_items
+    }
+}
 pub struct LRTable {
     pub actions_table: HashMap<State, Row<TerminalSymbol, Action>>,
     pub goto_table: HashMap<State, Row<NonterminalSymbol, Goto>>,
@@ -210,14 +367,15 @@ impl LRTable {
         let first_follow = FirstFollowSets::new(rules);
 
         println!("first");
-        for set in first_follow.first {
+        for set in &first_follow.first {
             println!("{:?}", set);
         }
         println!("follow");
-        for set in first_follow.follow {
+        for set in &first_follow.follow {
             println!("{:?}", set);
         }
 
+        let lr_items = LRItems::new(rules, &first_follow.follow);
         Self {
             actions_table: HashMap::new(),
             goto_table: HashMap::new(),
