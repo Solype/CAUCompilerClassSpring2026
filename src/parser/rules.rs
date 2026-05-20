@@ -163,14 +163,16 @@ where
             }
         };
 
-        for token in rule.input {
-            branch = branch.get_and_add_child_mut(&token);
+        for token in &rule.input {
+            branch = branch.get_and_add_child_mut(token);
         }
         if let Some(val) = &branch.output {
             if *val != rule.output {
                 eprintln!(
                     "\x1b[93m[WARNING]\x1b[0m Rule ignored because another rule already matches this sequence."
                 );
+                eprintln!("rule : {:?}", rule.input);
+                eprintln!("already in place : {:?}, new : {:?}", val, rule.output);
             }
             return self;
         }

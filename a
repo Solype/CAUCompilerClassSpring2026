@@ -33,48 +33,8 @@ adding the rule : CDECL <- Token(Class) Token(Id) Token(Nesting(Lbrace)) ODECL T
 adding the rule : ODECL <- VDECL ODECL ;
 adding the rule : ODECL <- FDECL ODECL ;
 Tree:
-    ├── ASSIGN
-    │   └── Token(Ponctuation(Semi)) -> STMT
-    ├── VDECL -> DECL
-    │   └── ODECL -> ODECL
-    ├── Token(Id) -> EXPRDOUBLEPRIME
-    │   └── Token(Assign)
-    │       └── RHS -> ASSIGN
-    ├── Token(Literal) -> RHS
-    ├── Token(Branchs(Else))
-    │   └── Token(Nesting(Lbrace))
-    │       └── BLOCK
-    │           └── Token(Nesting(Rbrace)) -> ELSE
-    ├── DECL
-    │   └── CODE -> CODE
-    ├── CDECL
-    │   └── CODE -> CODE
     ├── STMT
     │   └── BLOCK -> BLOCK
-    ├── Token(Branchs(Return))
-    │   └── RHS
-    │       └── Token(Ponctuation(Semi)) -> RETURN
-    ├── Token(Class)
-    │   └── Token(Id)
-    │       └── Token(Nesting(Lbrace))
-    │           └── ODECL
-    │               └── Token(Nesting(Rbrace)) -> CDECL
-    ├── Token(Nesting(Lparen))
-    │   └── EXPR
-    │       └── Token(Nesting(Rparen)) -> EXPRDOUBLEPRIME
-    ├── FDECL -> DECL
-    │   └── ODECL -> ODECL
-    ├── Token(Boolstr) -> RHS
-    ├── EXPR -> RHS
-    │   └── Token(Addsub)
-    │       └── EXPRPRIME -> EXPR
-    ├── EXPRPRIME -> EXPR
-    │   └── Token(Multdiv)
-    │       └── EXPRDOUBLEPRIME -> EXPRPRIME
-    ├── Token(Ponctuation(Comma))
-    │   └── Token(Vtype)
-    │       └── Token(Id)
-    │           └── MOREARGS -> MOREARGS
     ├── Token(Branchs(If))
     │   └── Token(Nesting(Lparen))
     │       └── COND
@@ -83,19 +43,27 @@ Tree:
     │                   └── BLOCK
     │                       └── Token(Nesting(Rbrace))
     │                           └── ELSE -> STMT
+    ├── CONDPRIME -> COND
     ├── COND
     │   └── Token(Comp)
     │       └── CONDPRIME -> COND
-    ├── EXPRDOUBLEPRIME -> EXPRPRIME
-    ├── Token(Branchs(While))
-    │   └── Token(Nesting(Lparen))
-    │       └── COND
-    │           └── Token(Nesting(Rparen))
-    │               └── Token(Nesting(Lbrace))
-    │                   └── BLOCK
-    │                       └── Token(Nesting(Rbrace)) -> STMT
-    ├── CONDPRIME -> COND
-    ├── Token(Character) -> RHS
+    ├── Token(Literal) -> RHS
+    ├── Token(Class)
+    │   └── Token(Id)
+    │       └── Token(Nesting(Lbrace))
+    │           └── ODECL
+    │               └── Token(Nesting(Rbrace)) -> CDECL
+    ├── EXPRPRIME -> EXPR
+    │   └── Token(Multdiv)
+    │       └── EXPRDOUBLEPRIME -> EXPRPRIME
+    ├── Token(Ponctuation(Comma))
+    │   └── Token(Vtype)
+    │       └── Token(Id)
+    │           └── MOREARGS -> MOREARGS
+    ├── ASSIGN
+    │   └── Token(Ponctuation(Semi)) -> STMT
+    ├── FDECL -> DECL
+    │   └── ODECL -> ODECL
     ├── Token(Vtype)
     │   ├── ASSIGN
     │   │   └── Token(Ponctuation(Semi)) -> VDECL
@@ -109,7 +77,39 @@ Tree:
     │       │                       └── Token(Nesting(Rbrace)) -> FDECL
     │       ├── Token(Ponctuation(Semi)) -> VDECL
     │       └── MOREARGS -> ARG
-    └── Token(Num) -> EXPRDOUBLEPRIME
+    ├── Token(Num) -> EXPRDOUBLEPRIME
+    ├── Token(Nesting(Lparen))
+    │   └── EXPR
+    │       └── Token(Nesting(Rparen)) -> EXPRDOUBLEPRIME
+    ├── Token(Character) -> RHS
+    ├── Token(Id) -> EXPRDOUBLEPRIME
+    │   └── Token(Assign)
+    │       └── RHS -> ASSIGN
+    ├── Token(Branchs(While))
+    │   └── Token(Nesting(Lparen))
+    │       └── COND
+    │           └── Token(Nesting(Rparen))
+    │               └── Token(Nesting(Lbrace))
+    │                   └── BLOCK
+    │                       └── Token(Nesting(Rbrace)) -> STMT
+    ├── EXPR -> RHS
+    │   └── Token(Addsub)
+    │       └── EXPRPRIME -> EXPR
+    ├── Token(Branchs(Else))
+    │   └── Token(Nesting(Lbrace))
+    │       └── BLOCK
+    │           └── Token(Nesting(Rbrace)) -> ELSE
+    ├── CDECL
+    │   └── CODE -> CODE
+    ├── DECL
+    │   └── CODE -> CODE
+    ├── EXPRDOUBLEPRIME -> EXPRPRIME
+    ├── Token(Branchs(Return))
+    │   └── RHS
+    │       └── Token(Ponctuation(Semi)) -> RETURN
+    ├── Token(Boolstr) -> RHS
+    └── VDECL -> DECL
+        └── ODECL -> ODECL
 before [Token(Vtype), Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace))]
 SEQUENCE : [Token(Vtype), Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace))]
 Token(Vtype) ::: [ Token(Id), Token(Nesting(Lparen)), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Branchs(If)), Token(Nesting(Lparen)), Token(Boolstr), Token(Comp), Token(Boolstr), Token(Nesting(Rparen)), Token(Nesting(Lbrace)), Token(Nesting(Rbrace)), Token(Branchs(Return)), Token(Num), Token(Ponctuation(Semi)), Token(Nesting(Rbrace)), ]
