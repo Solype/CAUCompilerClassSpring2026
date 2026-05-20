@@ -1,14 +1,12 @@
 mod input;
 mod parser;
+mod slr;
 mod token;
 mod tree;
 
 use token::*;
 
-use crate::{
-    input::read_input,
-    parser::{Parser, Rule},
-};
+use crate::slr::parser::{NonterminalSymbol, Productions, Symbol, TerminalSymbol};
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
 pub enum Expression {
@@ -35,254 +33,232 @@ pub enum Expression {
     ODECL,
 }
 
-fn get_rules() -> Vec<Rule<Expression>> {
-    vec![
-        // epsilon
-        Rule::new(Expression::CODE, vec![]),
-        Rule::new(Expression::ARG, vec![]),
-        Rule::new(Expression::MOREARGS, vec![]),
-        Rule::new(Expression::BLOCK, vec![]),
-        Rule::new(Expression::ELSE, vec![]),
-        Rule::new(Expression::ODECL, vec![]),
-        Rule::new(Expression::STMT, vec![]),
-        // 01
-        Rule::new(Expression::CODE, vec![Expression::VDECL, Expression::CODE]),
-        Rule::new(Expression::CODE, vec![Expression::FDECL, Expression::CODE]),
-        Rule::new(Expression::CODE, vec![Expression::CDECL, Expression::CODE]),
-        // 02
-        Rule::new(
-            Expression::VDECL,
-            vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Id)),
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
-            ],
-        ),
-        Rule::new(
-            Expression::VDECL,
-            vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::ASSIGN,
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
-            ],
-        ),
-        // 03
-        Rule::new(
-            Expression::ASSIGN,
-            vec![
-                Expression::Token(Token::from(TokenType::Id)),
-                Expression::Token(Token::from(TokenType::Assign)),
-                Expression::RHS,
-            ],
-        ),
-        // 04
-        Rule::new(Expression::RHS, vec![Expression::HIGHOP]),
-        Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Literal))],
-        ),
-        Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Character))],
-        ),
-        Rule::new(
-            Expression::RHS,
-            vec![Expression::Token(Token::from(TokenType::Boolstr))],
-        ),
-        // 05
-        Rule::new(
-            Expression::HIGHOP,
-            vec![
-                Expression::HIGHOP,
-                Expression::Token(Token::from(TokenType::Addsub)),
-                Expression::LOWOP,
-            ],
-        ),
-        Rule::new(Expression::HIGHOP, vec![Expression::LOWOP]),
-        Rule::new(
-            Expression::LOWOP,
-            vec![
-                Expression::LOWOP,
-                Expression::Token(Token::from(TokenType::Multdiv)),
-                Expression::OPERAND,
-            ],
-        ),
-        // 06
-        Rule::new(
-            Expression::OPERAND,
-            vec![
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
-                Expression::HIGHOP,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
-            ],
-        ),
-        Rule::new(
-            Expression::OPERAND,
-            vec![Expression::Token(Token::from(TokenType::Id))],
-        ),
-        Rule::new(
-            Expression::OPERAND,
-            vec![Expression::Token(Token::from(TokenType::Id))],
-        ),
-        // 07
-        Rule::new(
-            Expression::FDECL,
-            vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
-                Expression::ARG,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
-                Expression::BLOCK,
-                Expression::RETURN,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
-            ],
-        ),
-        // 08
-        Rule::new(
-            Expression::ARG,
-            vec![
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::MOREARGS,
-            ],
-        ),
-        // 09
-        Rule::new(
-            Expression::MOREARGS,
-            vec![
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Comma))),
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::MOREARGS,
-            ],
-        ),
-        // 10
-        Rule::new(Expression::BLOCK, vec![Expression::STMT, Expression::BLOCK]),
-        // 11
-        Rule::new(Expression::STMT, vec![Expression::VDECL]),
-        Rule::new(
-            Expression::STMT,
-            vec![
-                Expression::ASSIGN,
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
-            ],
-        ),
-        // 12
-        Rule::new(
-            Expression::STMT,
-            vec![
-                Expression::Token(Token::from(TokenType::Branchs(Branch::If))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
-                Expression::COND,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
-                Expression::BLOCK,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
-                Expression::ELSE,
-            ],
-        ),
-        // 13
-        Rule::new(
-            Expression::STMT,
-            vec![
-                Expression::Token(Token::from(TokenType::Branchs(Branch::While))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lparen))),
-                Expression::COND,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rparen))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
-                Expression::BLOCK,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
-            ],
-        ),
-        // 14
-        Rule::new(
-            Expression::COND,
-            vec![
-                Expression::COND,
-                Expression::Token(Token::from(TokenType::Comp)),
-                Expression::RCOND,
-            ],
-        ),
-        Rule::new(Expression::COND, vec![Expression::RCOND]),
-        Rule::new(
-            Expression::RCOND,
-            vec![Expression::Token(Token::from(TokenType::Boolstr))],
-        ),
-        // 15
-        Rule::new(
-            Expression::ELSE,
-            vec![
-                Expression::Token(Token::from(TokenType::Branchs(Branch::Else))),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
-                Expression::BLOCK,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
-            ],
-        ),
-        // 16
-        Rule::new(
-            Expression::RETURN,
-            vec![
-                Expression::Token(Token::from(TokenType::Branchs(Branch::Return))),
-                Expression::RHS,
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
-            ],
-        ),
-        // 17
-        Rule::new(
-            Expression::CDECL,
-            vec![
-                Expression::Token(Token::from(TokenType::Class)),
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Lbrace))),
-                Expression::ODECL,
-                Expression::Token(Token::from(TokenType::Nesting(Nesting::Rbrace))),
-            ],
-        ),
-        // 18
-        Rule::new(
-            Expression::ODECL,
-            vec![Expression::VDECL, Expression::ODECL],
-        ),
-        Rule::new(
-            Expression::ODECL,
-            vec![Expression::FDECL, Expression::ODECL],
-        ),
-    ]
+fn get_rules() -> slr::parser::Rules {
+    slr::parser::Rules {
+        start: NonterminalSymbol::Code,
+        productions: Productions::from([
+            (
+                NonterminalSymbol::Code,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::VDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::Code),
+                    ],
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::FDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::Code),
+                    ],
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::CDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::Code),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::VDecl,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Terminal(TerminalSymbol::Id),
+                        Symbol::Terminal(TerminalSymbol::Semi),
+                    ],
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Nonterminal(NonterminalSymbol::Assign),
+                        Symbol::Terminal(TerminalSymbol::Semi),
+                    ],
+                ],
+            ),
+            (
+                NonterminalSymbol::Assign,
+                vec![vec![
+                    Symbol::Terminal(TerminalSymbol::Id),
+                    Symbol::Terminal(TerminalSymbol::Assign),
+                    Symbol::Nonterminal(NonterminalSymbol::Rhs),
+                ]],
+            ),
+            (
+                NonterminalSymbol::Rhs,
+                vec![
+                    vec![Symbol::Nonterminal(NonterminalSymbol::HighOp)],
+                    vec![Symbol::Terminal(TerminalSymbol::Literal)],
+                    vec![Symbol::Terminal(TerminalSymbol::Character)],
+                    vec![Symbol::Terminal(TerminalSymbol::Boolstr)],
+                ],
+            ),
+            (
+                NonterminalSymbol::HighOp,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::HighOp),
+                        Symbol::Terminal(TerminalSymbol::Addsub),
+                        Symbol::Nonterminal(NonterminalSymbol::LowOp),
+                    ],
+                    vec![Symbol::Nonterminal(NonterminalSymbol::LowOp)],
+                ],
+            ),
+            (
+                NonterminalSymbol::LowOp,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::LowOp),
+                        Symbol::Terminal(TerminalSymbol::Multdiv),
+                        Symbol::Nonterminal(NonterminalSymbol::Operand),
+                    ],
+                    vec![Symbol::Nonterminal(NonterminalSymbol::Operand)],
+                ],
+            ),
+            (
+                NonterminalSymbol::Operand,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Lparen),
+                        Symbol::Nonterminal(NonterminalSymbol::HighOp),
+                        Symbol::Terminal(TerminalSymbol::Rparen),
+                    ],
+                    vec![Symbol::Terminal(TerminalSymbol::Id)],
+                    vec![Symbol::Terminal(TerminalSymbol::Num)],
+                ],
+            ),
+            (
+                NonterminalSymbol::FDecl,
+                vec![vec![
+                    Symbol::Terminal(TerminalSymbol::Vtype),
+                    Symbol::Terminal(TerminalSymbol::Id),
+                    Symbol::Terminal(TerminalSymbol::Lparen),
+                    Symbol::Nonterminal(NonterminalSymbol::Arg),
+                    Symbol::Terminal(TerminalSymbol::Rparen),
+                    Symbol::Terminal(TerminalSymbol::Lbrace),
+                    Symbol::Nonterminal(NonterminalSymbol::Block),
+                    Symbol::Nonterminal(NonterminalSymbol::Return),
+                    Symbol::Terminal(TerminalSymbol::Rbrace),
+                ]],
+            ),
+            (
+                NonterminalSymbol::Arg,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Terminal(TerminalSymbol::Id),
+                        Symbol::Nonterminal(NonterminalSymbol::MoreArgs),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::MoreArgs,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Comma),
+                        Symbol::Terminal(TerminalSymbol::Vtype),
+                        Symbol::Terminal(TerminalSymbol::Id),
+                        Symbol::Nonterminal(NonterminalSymbol::MoreArgs),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::Block,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::Stmt),
+                        Symbol::Nonterminal(NonterminalSymbol::Block),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::Stmt,
+                vec![
+                    vec![Symbol::Nonterminal(NonterminalSymbol::VDecl)],
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::Assign),
+                        Symbol::Terminal(TerminalSymbol::Semi),
+                    ],
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::If),
+                        Symbol::Terminal(TerminalSymbol::Lparen),
+                        Symbol::Nonterminal(NonterminalSymbol::Cond),
+                        Symbol::Terminal(TerminalSymbol::Rparen),
+                        Symbol::Terminal(TerminalSymbol::Lbrace),
+                        Symbol::Nonterminal(NonterminalSymbol::Block),
+                        Symbol::Terminal(TerminalSymbol::Rbrace),
+                        Symbol::Nonterminal(NonterminalSymbol::Else),
+                    ],
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::While),
+                        Symbol::Terminal(TerminalSymbol::Lparen),
+                        Symbol::Nonterminal(NonterminalSymbol::Cond),
+                        Symbol::Terminal(TerminalSymbol::Rparen),
+                        Symbol::Terminal(TerminalSymbol::Lbrace),
+                        Symbol::Nonterminal(NonterminalSymbol::Block),
+                        Symbol::Terminal(TerminalSymbol::Rbrace),
+                    ],
+                ],
+            ),
+            (
+                NonterminalSymbol::Cond,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::Cond),
+                        Symbol::Terminal(TerminalSymbol::Comp),
+                        Symbol::Nonterminal(NonterminalSymbol::RCond),
+                    ],
+                    vec![Symbol::Nonterminal(NonterminalSymbol::RCond)],
+                ],
+            ),
+            (
+                NonterminalSymbol::RCond,
+                vec![vec![Symbol::Terminal(TerminalSymbol::Boolstr)]],
+            ),
+            (
+                NonterminalSymbol::Else,
+                vec![
+                    vec![
+                        Symbol::Terminal(TerminalSymbol::Else),
+                        Symbol::Terminal(TerminalSymbol::Lbrace),
+                        Symbol::Nonterminal(NonterminalSymbol::Block),
+                        Symbol::Terminal(TerminalSymbol::Rbrace),
+                    ],
+                    vec![],
+                ],
+            ),
+            (
+                NonterminalSymbol::Return,
+                vec![vec![
+                    Symbol::Terminal(TerminalSymbol::Return),
+                    Symbol::Nonterminal(NonterminalSymbol::Rhs),
+                    Symbol::Terminal(TerminalSymbol::Semi),
+                ]],
+            ),
+            (
+                NonterminalSymbol::CDecl,
+                vec![vec![
+                    Symbol::Terminal(TerminalSymbol::Class),
+                    Symbol::Terminal(TerminalSymbol::Id),
+                    Symbol::Terminal(TerminalSymbol::Lbrace),
+                    Symbol::Nonterminal(NonterminalSymbol::ODecl),
+                    Symbol::Terminal(TerminalSymbol::Rbrace),
+                ]],
+            ),
+            (
+                NonterminalSymbol::ODecl,
+                vec![
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::VDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::ODecl),
+                    ],
+                    vec![
+                        Symbol::Nonterminal(NonterminalSymbol::FDecl),
+                        Symbol::Nonterminal(NonterminalSymbol::ODecl),
+                    ],
+                    vec![],
+                ],
+            ),
+        ]),
+    }
 }
-
-fn get_rules_test() -> Vec<Rule<Expression>> {
-    vec![
-        // 01
-        Rule::new(
-            Expression::CODE,
-            vec![
-                Expression::STMT,
-                Expression::Token(Token::from(TokenType::Vtype)),
-                Expression::Token(Token::from(TokenType::Id)),
-                Expression::Token(Token::from(TokenType::Ponctuation(Ponctuation::Semi))),
-            ],
-        ),
-        Rule::new(
-            Expression::STMT,
-            vec![Expression::Token(Token::from(TokenType::Comp))],
-        ),
-    ]
-}
-
 fn main() {
-    let buffer = read_input();
-
-    let mut tokens = parse_token(&buffer);
-
-    let mut parser = Parser::<Expression>::new();
-    parser.add_rules(get_rules());
-
-    let mut sequence = tokens
-        .iter_mut()
-        .map(|t| Expression::Token(t.clone()))
-        .collect();
-    println!("before {:?}", sequence);
-    parser.parse_sequence(&mut sequence);
-    println!("after {:?}", sequence)
+    let parser = slr::parser::LRTable::new(&get_rules());
 }
