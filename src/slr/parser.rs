@@ -3,8 +3,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs::Metadata,
     hash::Hash,
-    iter::Map,
-    os::linux::raw::stat,
 };
 
 use indexmap::IndexSet;
@@ -80,16 +78,20 @@ pub enum Symbol {
     Terminal(TerminalSymbol),
     Nonterminal(NonterminalSymbol),
 }
-type Symbols = Vec<Symbol>;
 
 type Row<T, K> = HashMap<T, K>;
 
-pub type Production = Vec<Symbols>;
-pub type Productions = BTreeMap<NonterminalSymbol, Production>;
-pub struct Rules {
-    pub start: NonterminalSymbol,
-    pub productions: Productions,
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+pub struct Production {
+    nt: NonterminalSymbol,
+    inputs: Vec<Symbol>,
 }
+impl Production {
+    pub fn new(nt: NonterminalSymbol, inputs: Vec<Symbol>) -> Self {
+        Self { nt, inputs }
+    }
+}
+pub type Productions = IndexSet<Production>;
 
 type FirstSet = HashSet<TerminalSymbol>;
 type FollowSet = HashSet<TerminalSymbol>;
@@ -103,18 +105,18 @@ pub struct FirstFollowSets {
     pub follow: FollowTable,
 }
 impl FirstFollowSets {
-    fn new(rules: &Rules) -> Self {
-        let first_table = Self::_build_first(rules);
-        let follow_table = Self::_build_follow(&first_table, rules);
+    fn new(productions: &Productions) -> Self {
+        let first_table = Self::_build_first(productions);
+        let follow_table = Self::_build_follow(&first_table, productions);
         Self {
             first: first_table,
             follow: follow_table,
         }
     }
 
-    fn _build_first(rules: &Rules) -> FirstTable {
+    fn _build_first(productions: &Productions) -> FirstTable {
         let mut table = FirstTable::new();
-        for nt in rules.productions.keys() {
+        for Production { nt, .. } in productions {
             table.insert(nt.clone(), FirstSet::new());
         }
 
@@ -123,25 +125,21 @@ impl FirstFollowSets {
         while changed {
             changed = false;
 
-            for (output, inputs) in &rules.productions {
-                for input in inputs {
-                    let Some(symbol) = input.first() else {
-                        changed |= table
-                            .get_mut(&output)
-                            .unwrap()
-                            .insert(TerminalSymbol::Epsilon);
+            for Production { nt, inputs } in productions {
+                println!("{:?} {:?}", nt, inputs);
+                let Some(symbol) = inputs.first() else {
+                    changed |= table.get_mut(&nt).unwrap().insert(TerminalSymbol::Epsilon);
 
-                        continue;
-                    };
+                    continue;
+                };
 
-                    let firsts = match symbol {
-                        Symbol::Terminal(t) => FirstSet::from([t.clone()]),
+                let firsts = match symbol {
+                    Symbol::Terminal(t) => FirstSet::from([t.clone()]),
 
-                        Symbol::Nonterminal(nt) => table.get(nt).cloned().unwrap(),
-                    };
-                    for first in firsts {
-                        changed |= table.get_mut(&output).unwrap().insert(first);
-                    }
+                    Symbol::Nonterminal(nt) => table.get(nt).cloned().unwrap(),
+                };
+                for first in firsts {
+                    changed |= table.get_mut(&nt).unwrap().insert(first);
                 }
             }
         }
@@ -149,12 +147,12 @@ impl FirstFollowSets {
         table
     }
 
-    fn _build_follow(first_table: &FirstTable, rules: &Rules) -> FollowTable {
+    fn _build_follow(first_table: &FirstTable, productions: &Productions) -> FollowTable {
         let mut table = FollowTable::new();
-        for nt in rules.productions.keys() {
+        for Production { nt, .. } in productions {
             table.insert(
                 nt.clone(),
-                if nt == &rules.start {
+                if nt == &productions.first().unwrap().nt {
                     FollowSet::from([TerminalSymbol::End])
                 } else {
                     FollowSet::from([TerminalSymbol::Undefined])
@@ -167,38 +165,33 @@ impl FirstFollowSets {
         while changed {
             changed = false;
 
-            for (output, inputs) in &rules.productions {
-                if *output == NonterminalSymbol::CDecl {
-                    println!("{:?}", table.get(output).unwrap())
-                }
-                for input in inputs {
-                    for (i, symbol) in input.iter().enumerate() {
-                        let Symbol::Nonterminal(followed) = symbol else {
-                            continue;
-                        };
+            for Production { nt, inputs } in productions {
+                for (i, symbol) in inputs.iter().enumerate() {
+                    let Symbol::Nonterminal(followed) = symbol else {
+                        continue;
+                    };
 
-                        let follows = match input.get(i + 1) {
-                            Some(Symbol::Terminal(t)) => FollowSet::from([t.clone()]),
+                    let follows = match inputs.get(i + 1) {
+                        Some(Symbol::Terminal(t)) => FollowSet::from([t.clone()]),
 
-                            Some(Symbol::Nonterminal(nt)) => {
-                                let mut nt_first = first_table.get(nt).cloned().unwrap();
-                                if nt_first.contains(&TerminalSymbol::Epsilon) {
-                                    nt_first.extend(table.get(&nt).cloned().unwrap());
-                                }
-                                nt_first
+                        Some(Symbol::Nonterminal(nt)) => {
+                            let mut nt_first = first_table.get(nt).cloned().unwrap();
+                            if nt_first.contains(&TerminalSymbol::Epsilon) {
+                                nt_first.extend(table.get(&nt).cloned().unwrap());
                             }
-
-                            None => table.get(&output).cloned().unwrap(),
-                        };
-                        for follow in follows.iter().filter(|t| {
-                            ![TerminalSymbol::Epsilon, TerminalSymbol::Undefined].contains(t)
-                        }) {
-                            table
-                                .get_mut(followed)
-                                .unwrap()
-                                .remove(&TerminalSymbol::Undefined);
-                            changed |= table.get_mut(followed).unwrap().insert(follow.clone());
+                            nt_first
                         }
+
+                        None => table.get(&nt).cloned().unwrap(),
+                    };
+                    for follow in follows.iter().filter(|t| {
+                        ![TerminalSymbol::Epsilon, TerminalSymbol::Undefined].contains(t)
+                    }) {
+                        table
+                            .get_mut(followed)
+                            .unwrap()
+                            .remove(&TerminalSymbol::Undefined);
+                        changed |= table.get_mut(followed).unwrap().insert(follow.clone());
                     }
                 }
             }
@@ -210,15 +203,14 @@ impl FirstFollowSets {
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub struct LRItem {
-    expr: NonterminalSymbol,
-    rule: Symbols,
+    production: Production,
     dot: usize,
 }
 impl fmt::Display for LRItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} ->", self.expr)?;
+        write!(f, "{:?} ->", self.production.nt)?;
 
-        for (i, symbol) in self.rule.iter().enumerate() {
+        for (i, symbol) in self.production.inputs.iter().enumerate() {
             if i == self.dot {
                 write!(f, " .")?;
             }
@@ -226,7 +218,7 @@ impl fmt::Display for LRItem {
             write!(f, " {:?}", symbol)?;
         }
 
-        if self.dot == self.rule.len() {
+        if self.dot == self.production.inputs.len() {
             write!(f, " .")?;
         }
 
@@ -238,46 +230,34 @@ pub struct LRItems {
     states: IndexSet<State>,
 }
 impl LRItems {
-    fn _closure_items(nt: &NonterminalSymbol, dot: usize, rules: &Rules) -> Vec<LRItem> {
-        rules
-            .productions
-            .get(&nt)
-            .unwrap()
+    fn _closure_items(
+        nt: &NonterminalSymbol,
+        dot: usize,
+        productions: &Productions,
+    ) -> Vec<LRItem> {
+        productions
             .iter()
-            .map(|symbols| LRItem {
-                expr: nt.clone(),
-                rule: symbols.clone(),
-                dot: dot,
+            .filter_map(|production| {
+                if nt == &production.nt {
+                    Some(LRItem {
+                        production: production.clone(),
+                        dot,
+                    })
+                } else {
+                    None
+                }
             })
             .collect()
     }
-    fn _closure(nt: &NonterminalSymbol, dot: usize, rules: &Rules, mut state: &mut State) {
-        let closure_items = Self::_closure_items(nt, dot, rules);
-        let mut to_expands = vec![];
-        for item in &closure_items {
-            if state.insert(item.clone())
-                && let Some(s) = item.rule.get(dot)
-            {
-                to_expands.push(s.clone());
-            }
-        }
 
-        while !to_expands.is_empty() {
-            let Symbol::Nonterminal(nt) = to_expands.pop().unwrap() else {
-                continue;
-            };
-            Self::_closure(&nt, 0, &rules, &mut state);
-        }
-    }
-
-    fn _closure2(mut state: State, rules: &Rules) -> State {
+    fn _closure(mut state: State, productions: &Productions) -> State {
         let mut changed = true;
         let mut to_add = vec![];
         while changed {
             changed = false;
             for item in &state {
-                if let Some(Symbol::Nonterminal(nt)) = item.rule.get(item.dot) {
-                    to_add.extend(Self::_closure_items(nt, 0, rules));
+                if let Some(Symbol::Nonterminal(nt)) = item.production.inputs.get(item.dot) {
+                    to_add.extend(Self::_closure_items(nt, 0, productions));
                 }
             }
 
@@ -293,7 +273,7 @@ impl LRItems {
     pub fn _goto(from_state: &State, symbol: &Symbol) -> State {
         let mut new_state = State::new();
         for item in from_state {
-            if item.rule.get(item.dot) == Some(symbol) {
+            if item.production.inputs.get(item.dot) == Some(symbol) {
                 let mut new_item = item.clone();
                 new_item.dot = item.dot + 1;
                 new_state.insert(new_item.clone());
@@ -303,14 +283,18 @@ impl LRItems {
         new_state
     }
 
-    pub fn new(rules: &Rules, follows: &FollowTable) -> Self {
+    pub fn new(productions: &Productions, follows: &FollowTable) -> Self {
+        let start_production = Production::new(
+            NonterminalSymbol::Start,
+            vec![Symbol::Nonterminal(productions.first().unwrap().nt.clone())],
+        );
+
         let mut start_state = State::from([LRItem {
-            expr: NonterminalSymbol::Start,
-            rule: vec![Symbol::Nonterminal(rules.start.clone())],
+            production: start_production,
             dot: 0,
         }]);
 
-        start_state = Self::_closure2(start_state, &rules);
+        start_state = Self::_closure(start_state, &productions);
 
         let mut lr_items = LRItems {
             states: IndexSet::from([start_state.clone()]),
@@ -329,7 +313,7 @@ impl LRItems {
             next_symbols.extend(
                 from_state
                     .iter()
-                    .map(|item| item.rule.get(item.dot))
+                    .map(|item| item.production.inputs.get(item.dot))
                     .flatten(),
             );
             for next_symbol in next_symbols {
@@ -339,7 +323,7 @@ impl LRItems {
                     next_symbol
                 );
                 let mut new_state = Self::_goto(&from_state, next_symbol);
-                new_state = Self::_closure2(new_state, rules);
+                new_state = Self::_closure(new_state, productions);
                 if lr_items.states.insert(new_state.clone()) {
                     new_states.push(new_state.clone());
                 }
@@ -363,8 +347,8 @@ pub struct LRTable {
 }
 
 impl LRTable {
-    pub fn new(rules: &Rules) -> Self {
-        let first_follow = FirstFollowSets::new(rules);
+    pub fn new(productions: &Productions) -> Self {
+        let first_follow = FirstFollowSets::new(productions);
 
         println!("first");
         for set in &first_follow.first {
@@ -375,7 +359,7 @@ impl LRTable {
             println!("{:?}", set);
         }
 
-        let lr_items = LRItems::new(rules, &first_follow.follow);
+        let lr_items = LRItems::new(productions, &first_follow.follow);
         Self {
             actions_table: HashMap::new(),
             goto_table: HashMap::new(),
