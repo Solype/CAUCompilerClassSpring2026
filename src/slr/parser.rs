@@ -9,13 +9,20 @@ use indexmap::IndexSet;
 
 type StateId = usize;
 
-enum Action {
+#[derive(Debug)]
+pub enum Action {
     Shift(StateId),
-    Reduce(StateId),
+    Reduce(ProductionId),
     Accept,
 }
-
 type Goto = StateId;
+
+#[derive(Debug)]
+pub struct Transition {
+    from: StateId,
+    symbol: Symbol,
+    result: StateId,
+}
 
 struct Token {
     typ: TerminalSymbol,
@@ -79,8 +86,7 @@ pub enum Symbol {
     Nonterminal(NonterminalSymbol),
 }
 
-type Row<T, K> = HashMap<T, K>;
-
+type ProductionId = usize;
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub struct Production {
     nt: NonterminalSymbol,
@@ -106,15 +112,15 @@ pub struct FirstFollowSets {
 }
 impl FirstFollowSets {
     fn new(productions: &Productions) -> Self {
-        let first_table = Self::_build_first(productions);
-        let follow_table = Self::_build_follow(&first_table, productions);
+        let first_table = Self::build_first(productions);
+        let follow_table = Self::build_follow(&first_table, productions);
         Self {
             first: first_table,
             follow: follow_table,
         }
     }
 
-    fn _build_first(productions: &Productions) -> FirstTable {
+    fn build_first(productions: &Productions) -> FirstTable {
         let mut table = FirstTable::new();
         for Production { nt, .. } in productions {
             table.insert(nt.clone(), FirstSet::new());
@@ -126,7 +132,6 @@ impl FirstFollowSets {
             changed = false;
 
             for Production { nt, inputs } in productions {
-                println!("{:?} {:?}", nt, inputs);
                 let Some(symbol) = inputs.first() else {
                     changed |= table.get_mut(&nt).unwrap().insert(TerminalSymbol::Epsilon);
 
@@ -147,7 +152,7 @@ impl FirstFollowSets {
         table
     }
 
-    fn _build_follow(first_table: &FirstTable, productions: &Productions) -> FollowTable {
+    fn build_follow(first_table: &FirstTable, productions: &Productions) -> FollowTable {
         let mut table = FollowTable::new();
         for Production { nt, .. } in productions {
             table.insert(
@@ -228,13 +233,10 @@ impl fmt::Display for LRItem {
 pub type State = BTreeSet<LRItem>;
 pub struct LRItems {
     states: IndexSet<State>,
+    transitions: Vec<Transition>,
 }
 impl LRItems {
-    fn _closure_items(
-        nt: &NonterminalSymbol,
-        dot: usize,
-        productions: &Productions,
-    ) -> Vec<LRItem> {
+    fn closure_items(nt: &NonterminalSymbol, dot: usize, productions: &Productions) -> Vec<LRItem> {
         productions
             .iter()
             .filter_map(|production| {
@@ -250,14 +252,14 @@ impl LRItems {
             .collect()
     }
 
-    fn _closure(mut state: State, productions: &Productions) -> State {
+    fn closure(mut state: State, productions: &Productions) -> State {
         let mut changed = true;
         let mut to_add = vec![];
         while changed {
             changed = false;
             for item in &state {
                 if let Some(Symbol::Nonterminal(nt)) = item.production.inputs.get(item.dot) {
-                    to_add.extend(Self::_closure_items(nt, 0, productions));
+                    to_add.extend(Self::closure_items(nt, 0, productions));
                 }
             }
 
@@ -270,7 +272,7 @@ impl LRItems {
         state
     }
 
-    pub fn _goto(from_state: &State, symbol: &Symbol) -> State {
+    fn goto(from_state: &State, symbol: &Symbol) -> State {
         let mut new_state = State::new();
         for item in from_state {
             if item.production.inputs.get(item.dot) == Some(symbol) {
@@ -283,7 +285,7 @@ impl LRItems {
         new_state
     }
 
-    pub fn new(productions: &Productions, follows: &FollowTable) -> Self {
+    pub fn new(productions: &Productions) -> Self {
         let start_production = Production::new(
             NonterminalSymbol::Start,
             vec![Symbol::Nonterminal(productions.first().unwrap().nt.clone())],
@@ -294,10 +296,11 @@ impl LRItems {
             dot: 0,
         }]);
 
-        start_state = Self::_closure(start_state, &productions);
+        start_state = Self::closure(start_state, &productions);
 
         let mut lr_items = LRItems {
             states: IndexSet::from([start_state.clone()]),
+            transitions: vec![],
         };
 
         let mut new_states = vec![start_state.clone()];
@@ -317,52 +320,95 @@ impl LRItems {
                     .flatten(),
             );
             for next_symbol in next_symbols {
-                println!(
-                    "goto state {:?} symbol: {:?}\n",
-                    lr_items.states.get_index_of(&from_state),
-                    next_symbol
-                );
-                let mut new_state = Self::_goto(&from_state, next_symbol);
-                new_state = Self::_closure(new_state, productions);
+                let mut new_state = Self::goto(&from_state, next_symbol);
+                new_state = Self::closure(new_state, productions);
                 if lr_items.states.insert(new_state.clone()) {
                     new_states.push(new_state.clone());
                 }
-                println!("-->> state {:?}", lr_items.states.get_index_of(&new_state),);
-                for i in new_state.clone() {
-                    println!("{}", i);
-                }
+                lr_items.transitions.push(Transition {
+                    from: lr_items.states.get_index_of(&from_state).unwrap(),
+                    symbol: next_symbol.clone(),
+                    result: lr_items.states.get_index_of(&new_state).unwrap(),
+                })
             }
         }
-        for state in &lr_items.states {
-            println!("{:?}", state);
-        }
-        println!("count: {:?}", lr_items.states.iter().count());
 
         lr_items
     }
 }
 pub struct LRTable {
-    pub actions_table: HashMap<State, Row<TerminalSymbol, Action>>,
-    pub goto_table: HashMap<State, Row<NonterminalSymbol, Goto>>,
+    pub lr_items: LRItems,
+    pub actions: HashMap<(StateId, TerminalSymbol), Action>,
+    pub gotos: HashMap<(StateId, NonterminalSymbol), Goto>,
 }
 
 impl LRTable {
     pub fn new(productions: &Productions) -> Self {
         let first_follow = FirstFollowSets::new(productions);
 
-        println!("first");
-        for set in &first_follow.first {
-            println!("{:?}", set);
+        let lr_items = LRItems::new(productions);
+        let mut actions = HashMap::new();
+        let mut gotos = HashMap::new();
+        for transition in lr_items.transitions.iter() {
+            match transition.symbol.clone() {
+                Symbol::Terminal(t) => {
+                    actions.insert((transition.from, t), Action::Shift(transition.result));
+                }
+                Symbol::Nonterminal(nt) => {
+                    gotos.insert((transition.from, nt), transition.result);
+                }
+            }
         }
-        println!("follow");
-        for set in &first_follow.follow {
-            println!("{:?}", set);
+        lr_items.states.iter().enumerate().for_each(|(id, state)| {
+            state.iter().for_each(|item| {
+                if item.dot == item.production.inputs.len() {
+                    if item.production.nt == NonterminalSymbol::Start {
+                        actions.insert((id, TerminalSymbol::End), Action::Accept);
+                    } else {
+                        first_follow
+                            .follow
+                            .get(&item.production.nt)
+                            .unwrap()
+                            .iter()
+                            .for_each(|t| {
+                                actions.insert(
+                                    (id, t.clone()),
+                                    Action::Reduce(
+                                        productions.get_index_of(&item.production).unwrap(),
+                                    ),
+                                );
+                            });
+                    }
+                }
+            })
+        });
+
+        Self {
+            lr_items,
+            actions,
+            gotos,
+        }
+    }
+}
+impl fmt::Display for LRTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (state_id, _) in self.lr_items.states.iter().enumerate() {
+            write!(f, "s{}\t|", state_id)?;
+
+            let state_actions = self.actions.iter().filter(|((id, _), _)| *id == state_id);
+            for ((_, t), state_action) in state_actions {
+                write!(f, "\t{:?}={:?}", t, state_action)?;
+            }
+
+            let state_gotos = self.gotos.iter().filter(|((id, _), _)| *id == state_id);
+            write!(f, "\t||")?;
+            for ((_, t), state_goto) in state_gotos {
+                write!(f, "\t{:?}={:?}", t, state_goto)?;
+            }
+
+            write!(f, "\n")?;
         }
 
-        let lr_items = LRItems::new(productions, &first_follow.follow);
-        Self {
-            actions_table: HashMap::new(),
-            goto_table: HashMap::new(),
-        }
+        Ok(())
     }
 }

@@ -320,4 +320,6 @@ fn get_test_rules() -> slr::parser::Productions {
 }
 fn main() {
     let parser = slr::parser::LRTable::new(&get_rules());
+
+    println!("{}", parser);
 }
