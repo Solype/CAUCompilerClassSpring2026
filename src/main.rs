@@ -319,12 +319,16 @@ fn get_test_rules() -> slr::parser::Productions {
         ),
     ])
 }
+
+
+
 fn main() {
-    // let parser = slr::parser::LRTable::new(&get_rules());
     let mut rules = ruleparser::structs::TokenManager::new();
     let input = read_input();
     let rules_input = parse_rules(&input);
     rules.add_productions(&rules_input);
-    println!("{}", rules);
-    println!("{:?}", rules);
+    let parser = slr::parser::LRTable::new(&get_test_rules());
+    println!("{}", parser);
+    // println!("{}", rules);
+    // println!("{:?}", rules);
 }

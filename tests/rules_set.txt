@@ -1,7 +1,8 @@
-E' -> E
-E -> E + T
-E -> T
-T -> T * F
-T -> F
-F -> ( E )
-F -> id
+Code -> VDecl Code
+Code -> Vtype Assign
+Code -> ''
+
+VDecl -> Vtype Id Semi
+VDecl -> Vtype Assign Semi
+
+Assign -> Id Assign

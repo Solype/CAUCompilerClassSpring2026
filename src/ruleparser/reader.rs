@@ -1,6 +1,5 @@
 use super::structs::RawProduction;
 
-
 fn process_line(buffer: impl Into<String>) -> Option<RawProduction> {
     let line: Vec<String> = buffer
         .into()
@@ -13,9 +12,15 @@ fn process_line(buffer: impl Into<String>) -> Option<RawProduction> {
         return None;
     }
 
+    let inputs = if line.len() == 3 && line[2] == "''" {
+        vec![]
+    } else {
+        line[2..].to_vec()
+    };
+
     Some(RawProduction::new(
         line[0].clone(),
-        line[2..].to_vec(),
+        inputs,
     ))
 }
 
