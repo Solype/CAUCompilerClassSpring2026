@@ -326,4 +326,5 @@ fn main() {
     let rules_input = parse_rules(&input);
     rules.add_productions(&rules_input);
     println!("{}", rules);
+    println!("{:?}", rules);
 }
