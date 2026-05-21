@@ -3,10 +3,11 @@ mod parser;
 mod slr;
 mod token;
 mod tree;
+mod ruleparser;
 
 use token::*;
 
-use crate::slr::parser::{NonterminalSymbol, Production, Productions, Symbol, TerminalSymbol};
+use crate::{input::read_input, ruleparser::{reader::parse_rules, structs::RawProduction}, slr::parser::{NonterminalSymbol, Production, Productions, Symbol, TerminalSymbol}};
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
 pub enum Expression {
@@ -319,7 +320,10 @@ fn get_test_rules() -> slr::parser::Productions {
     ])
 }
 fn main() {
-    let parser = slr::parser::LRTable::new(&get_rules());
-
-    println!("{}", parser);
+    // let parser = slr::parser::LRTable::new(&get_rules());
+    let mut rules = ruleparser::structs::TokenManager::new();
+    let input = read_input();
+    let rules_input = parse_rules(&input);
+    rules.add_productions(&rules_input);
+    println!("{}", rules);
 }
