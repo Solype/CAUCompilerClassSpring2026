@@ -1,5 +1,0 @@
-Expression: ReturnSequence { value: VDECL, size: 3 }
-new sequence: [VDECL]
-Expression: ReturnSequence { value: STMT, size: 1 }
-new sequence: [STMT]
-[STMT]

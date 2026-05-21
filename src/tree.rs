@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use crate::Expression;
 use std::fmt::{self, Debug, Error, Write};
 
 #[derive(Debug, Clone)]
@@ -28,6 +27,7 @@ where
     pub fn new(value: T, children: Vec<TreeNode<T>>) -> Self {
         TreeNode { value, children }
     }
+
     fn private_display(&self, out: &mut impl Write, nesting: usize) -> fmt::Result {
         write!(out, "{}{:?}", "  ".repeat(nesting), self.value)?;
         for child in &self.children {
