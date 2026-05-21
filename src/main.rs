@@ -7,7 +7,7 @@ mod ruleparser;
 
 use token::*;
 
-use crate::{input::read_input, ruleparser::{reader::parse_rules, structs::RawProduction}, slr::parser::{NonterminalSymbol, Production, Productions, Symbol, TerminalSymbol}};
+use crate::{input::read_input, ruleparser::{reader::parse_rules, structs::RawProduction}, slr::parser::{/*NonterminalSymbol, Production,*/ Productions, /*Symbol, TerminalSymbol*/}};
 
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash)]
 pub enum Expression {
@@ -33,7 +33,7 @@ pub enum Expression {
     CDECL,
     ODECL,
 }
-
+/*
 fn get_rules() -> Productions {
     Productions::from([
         Production::new(
@@ -320,15 +320,15 @@ fn get_test_rules() -> slr::parser::Productions {
     ])
 }
 
-
+ */
 
 fn main() {
     let mut rules = ruleparser::structs::TokenManager::new();
     let input = read_input();
     let rules_input = parse_rules(&input);
     rules.add_productions(&rules_input);
-    let parser = slr::parser::LRTable::new(&get_test_rules());
+    let parser = slr::parser::LRTable::new(&rules.get_production());
     println!("{}", parser);
-    // println!("{}", rules);
+    println!("{}", rules);
     // println!("{:?}", rules);
 }

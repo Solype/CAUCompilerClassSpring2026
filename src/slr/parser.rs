@@ -7,6 +7,8 @@ use std::{
 
 use indexmap::IndexSet;
 
+use crate::ruleparser::structs::{END, EPSILON, NonTerm, Production, START, Sym, Term, Token, UNDEFINED};
+
 type StateId = usize;
 
 #[derive(Debug)]
@@ -20,90 +22,92 @@ type Goto = StateId;
 #[derive(Debug)]
 pub struct Transition {
     from: StateId,
-    symbol: Symbol,
+    symbol: Token,
     result: StateId,
 }
 
-struct Token {
-    typ: TerminalSymbol,
-    metadata: Metadata,
-}
+// struct Token {
+//     typ: TerminalSymbol,
+//     metadata: Metadata,
+// }
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub enum TerminalSymbol {
-    Epsilon,
-    Vtype,
-    Literal,
-    Boolstr,
-    Num,
-    Character,
-    Id,
-    If,
-    Else,
-    While,
-    Return,
-    Class,
-    Addsub,
-    Multdiv,
-    Assign,
-    Comp,
-    Semi,
-    Comma,
-    Lparen,
-    Rparen,
-    Lbrace,
-    Rbrace,
-    End,
-    Undefined,
-}
+// #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+// pub enum TerminalSymbol {
+//     Epsilon,
+//     Vtype,
+//     Literal,
+//     Boolstr,
+//     Num,
+//     Character,
+//     Id,
+//     If,
+//     Else,
+//     While,
+//     Return,
+//     Class,
+//     Addsub,
+//     Multdiv,
+//     Assign,
+//     Comp,
+//     Semi,
+//     Comma,
+//     Lparen,
+//     Rparen,
+//     Lbrace,
+//     Rbrace,
+//     End,
+//     Undefined,
+// }
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub enum NonterminalSymbol {
-    Start,
-    Code,
-    VDecl,
-    Assign,
-    Rhs,
-    HighOp,
-    LowOp,
-    Operand,
-    FDecl,
-    Arg,
-    MoreArgs,
-    Block,
-    Stmt,
-    Cond,
-    RCond,
-    Else,
-    Return,
-    CDecl,
-    ODecl,
-}
+// #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+// pub enum NonterminalSymbol {
+//     Start,
+//     Code,
+//     VDecl,
+//     Assign,
+//     Rhs,
+//     HighOp,
+//     LowOp,
+//     Operand,
+//     FDecl,
+//     Arg,
+//     MoreArgs,
+//     Block,
+//     Stmt,
+//     Cond,
+//     RCond,
+//     Else,
+//     Return,
+//     CDecl,
+//     ODecl,
+// }
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub enum Symbol {
-    Terminal(TerminalSymbol),
-    Nonterminal(NonterminalSymbol),
-}
+// #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+// pub enum Symbol {
+//     Terminal(TerminalSymbol),
+//     Nonterminal(NonterminalSymbol),
+// }
 
 type ProductionId = usize;
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct Production {
-    nt: NonterminalSymbol,
-    inputs: Vec<Symbol>,
-}
-impl Production {
-    pub fn new(nt: NonterminalSymbol, inputs: Vec<Symbol>) -> Self {
-        Self { nt, inputs }
-    }
-}
+
+// #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+// pub struct Production {
+//     nt: NonterminalSymbol,
+//     inputs: Vec<Symbol>,
+// }
+// impl Production {
+//     pub fn new(nt: NonterminalSymbol, inputs: Vec<Symbol>) -> Self {
+//         Self { nt, inputs }
+//     }
+// }
+
 pub type Productions = IndexSet<Production>;
 
-type FirstSet = HashSet<TerminalSymbol>;
-type FollowSet = HashSet<TerminalSymbol>;
+type FirstSet = HashSet<Term>;
+type FollowSet = HashSet<Term>;
 
-type FirstTable = BTreeMap<NonterminalSymbol, FirstSet>;
-type FollowTable = BTreeMap<NonterminalSymbol, FollowSet>;
+type FirstTable = BTreeMap<NonTerm, FirstSet>;
+type FollowTable = BTreeMap<NonTerm, FollowSet>;
 
 #[derive(Debug)]
 pub struct FirstFollowSets {
@@ -133,15 +137,15 @@ impl FirstFollowSets {
 
             for Production { nt, inputs } in productions {
                 let Some(symbol) = inputs.first() else {
-                    changed |= table.get_mut(&nt).unwrap().insert(TerminalSymbol::Epsilon);
+                    changed |= table.get_mut(&nt).unwrap().insert(EPSILON);
 
                     continue;
                 };
 
                 let firsts = match symbol {
-                    Symbol::Terminal(t) => FirstSet::from([t.clone()]),
+                    Token::Term(t) => FirstSet::from([t.clone()]),
 
-                    Symbol::Nonterminal(nt) => table.get(nt).cloned().unwrap(),
+                    Token::NonTerm(nt) => table.get(nt).cloned().unwrap(),
                 };
                 for first in firsts {
                     changed |= table.get_mut(&nt).unwrap().insert(first);
@@ -158,9 +162,9 @@ impl FirstFollowSets {
             table.insert(
                 nt.clone(),
                 if nt == &productions.first().unwrap().nt {
-                    FollowSet::from([TerminalSymbol::End])
+                    FollowSet::from([END])
                 } else {
-                    FollowSet::from([TerminalSymbol::Undefined])
+                    FollowSet::from([UNDEFINED])
                 },
             );
         }
@@ -172,16 +176,16 @@ impl FirstFollowSets {
 
             for Production { nt, inputs } in productions {
                 for (i, symbol) in inputs.iter().enumerate() {
-                    let Symbol::Nonterminal(followed) = symbol else {
+                    let Token::NonTerm(followed) = symbol else {
                         continue;
                     };
 
                     let follows = match inputs.get(i + 1) {
-                        Some(Symbol::Terminal(t)) => FollowSet::from([t.clone()]),
+                        Some(Token::Term(t)) => FollowSet::from([t.clone()]),
 
-                        Some(Symbol::Nonterminal(nt)) => {
+                        Some(Token::NonTerm(nt)) => {
                             let mut nt_first = first_table.get(nt).cloned().unwrap();
-                            if nt_first.contains(&TerminalSymbol::Epsilon) {
+                            if nt_first.contains(&EPSILON) {
                                 nt_first.extend(table.get(&nt).cloned().unwrap());
                             }
                             nt_first
@@ -190,12 +194,12 @@ impl FirstFollowSets {
                         None => table.get(&nt).cloned().unwrap(),
                     };
                     for follow in follows.iter().filter(|t| {
-                        ![TerminalSymbol::Epsilon, TerminalSymbol::Undefined].contains(t)
+                        ![EPSILON, UNDEFINED].contains(t)
                     }) {
                         table
                             .get_mut(followed)
                             .unwrap()
-                            .remove(&TerminalSymbol::Undefined);
+                            .remove(&UNDEFINED);
                         changed |= table.get_mut(followed).unwrap().insert(follow.clone());
                     }
                 }
@@ -236,7 +240,7 @@ pub struct LRItems {
     transitions: Vec<Transition>,
 }
 impl LRItems {
-    fn closure_items(nt: &NonterminalSymbol, dot: usize, productions: &Productions) -> Vec<LRItem> {
+    fn closure_items(nt: &NonTerm, dot: usize, productions: &Productions) -> Vec<LRItem> {
         productions
             .iter()
             .filter_map(|production| {
@@ -258,7 +262,7 @@ impl LRItems {
         while changed {
             changed = false;
             for item in &state {
-                if let Some(Symbol::Nonterminal(nt)) = item.production.inputs.get(item.dot) {
+                if let Some(Token::NonTerm(nt)) = item.production.inputs.get(item.dot) {
                     to_add.extend(Self::closure_items(nt, 0, productions));
                 }
             }
@@ -272,7 +276,7 @@ impl LRItems {
         state
     }
 
-    fn goto(from_state: &State, symbol: &Symbol) -> State {
+    fn goto(from_state: &State, symbol: &Token) -> State {
         let mut new_state = State::new();
         for item in from_state {
             if item.production.inputs.get(item.dot) == Some(symbol) {
@@ -287,8 +291,8 @@ impl LRItems {
 
     pub fn new(productions: &Productions) -> Self {
         let start_production = Production::new(
-            NonterminalSymbol::Start,
-            vec![Symbol::Nonterminal(productions.first().unwrap().nt.clone())],
+            START,
+            vec![Token::NonTerm(productions.first().unwrap().nt.clone())],
         );
 
         let mut start_state = State::from([LRItem {
@@ -333,8 +337,8 @@ impl LRItems {
 }
 pub struct LRTable {
     pub lr_items: LRItems,
-    pub actions: HashMap<(StateId, TerminalSymbol), Action>,
-    pub gotos: HashMap<(StateId, NonterminalSymbol), Goto>,
+    pub actions: HashMap<(StateId, Term), Action>,
+    pub gotos: HashMap<(StateId, NonTerm), Goto>,
 }
 
 impl LRTable {
@@ -346,10 +350,10 @@ impl LRTable {
         let mut gotos = HashMap::new();
         for transition in lr_items.transitions.iter() {
             match transition.symbol.clone() {
-                Symbol::Terminal(t) => {
+                Token::Term(t) => {
                     actions.insert((transition.from, t), Action::Shift(transition.result));
                 }
-                Symbol::Nonterminal(nt) => {
+                Token::NonTerm(nt) => {
                     gotos.insert((transition.from, nt), transition.result);
                 }
             }
@@ -357,8 +361,8 @@ impl LRTable {
         lr_items.states.iter().enumerate().for_each(|(id, state)| {
             state.iter().for_each(|item| {
                 if item.dot == item.production.inputs.len() {
-                    if item.production.nt == NonterminalSymbol::Start {
-                        actions.insert((id, TerminalSymbol::End), Action::Accept);
+                    if item.production.nt == START {
+                        actions.insert((id, END), Action::Accept);
                     } else {
                         first_follow
                             .follow

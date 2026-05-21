@@ -22,10 +22,10 @@ impl Sym {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub struct NonTerm(Sym);
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub struct Term(Sym);
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -80,8 +80,15 @@ impl SimpleProduction {
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub struct Production {
-    nt: NonTerm,
-    inputs: Vec<Token>,
+    pub nt: NonTerm,
+    pub inputs: Vec<Token>,
+}
+
+impl Production {
+    pub fn new(nt: NonTerm, inputs: Vec<Token>) -> Self
+    {
+        Self { nt, inputs }
+    }
 }
 
 pub struct RawProduction {
@@ -102,18 +109,32 @@ impl RawProduction {
 /// HANDLER
 ////////////////////////////////////////////////////////////////
 
-#[derive(Default)]
 pub struct TokenManager {
     token: HashMap<String, usize>,
     non_terminal_token: HashSet<usize>,
     productions: IndexSet<SimpleProduction>,
 }
 
+pub const START : NonTerm = NonTerm(Sym(0));
+pub const EPSILON : Term = Term(Sym(1));
+pub const END : Term = Term(Sym(2));
+pub const UNDEFINED : Term = Term(Sym(3));
 
 impl TokenManager {
     pub fn new() -> Self
     {
-        Self::default()
+        let mut new_var = Self {
+            token: HashMap::<String, usize>::new(),
+            non_terminal_token: HashSet::<usize>::new(),
+            productions: IndexSet::<SimpleProduction>::new(),
+        };
+
+        new_var.add_token(&"START".to_string()); // 0
+        new_var.add_token(&"EPSILON".to_string()); // 1
+        new_var.add_token(&"END".to_string()); // 2
+        new_var.add_token(&"UNDEFINED".to_string()); // 3
+
+        new_var
     }
 
     pub fn get_token(&self, str: &String) -> Token
