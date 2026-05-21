@@ -304,11 +304,6 @@ impl LRItems {
         };
 
         let mut new_states = vec![start_state.clone()];
-        println!("state 0:");
-        for i in start_state.clone() {
-            println!("{}", i);
-        }
-
         while !new_states.is_empty() {
             let from_state = new_states.pop().unwrap();
 
