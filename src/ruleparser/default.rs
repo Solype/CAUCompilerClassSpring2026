@@ -1,4 +1,4 @@
-Code -> VDecl Code
+pub const DEFAULT_RULES: &str = "Code -> VDecl Code
 Code -> Vtype Assign
 Code -> ''
 
@@ -6,3 +6,4 @@ VDecl -> Vtype Id Semi
 VDecl -> Vtype Assign Semi
 
 Assign -> Id Assign
+";
