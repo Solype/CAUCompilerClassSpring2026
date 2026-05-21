@@ -7,10 +7,10 @@ use indexmap::IndexSet;
 /// TOKENS
 ////////////////////////////////////////////////////////////////
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub struct Sym(usize);
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub enum Token {
     Term(Sym),
     NonTerm(Sym)
@@ -30,7 +30,7 @@ impl Token {
 /// PRODUCTION
 ////////////////////////////////////////////////////////////////
 
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub struct Production {
     nt: Token,
     inputs: Vec<Token>,
@@ -54,7 +54,7 @@ impl RawProduction {
 /// HANDLER
 ////////////////////////////////////////////////////////////////
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct TokenManager {
     token: HashMap<String, usize>,
     non_terminal_token: HashSet<usize>,
@@ -77,6 +77,17 @@ impl TokenManager {
             return  Token::Term(Sym(*id));
         }
         panic!("The token cannot be retrieved, it does not exists");
+    }
+
+    pub fn get_token_name(&self, id: usize) -> String {
+        self.token.iter().find_map(|(name, &value)| {
+                if value == id {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| format!("<unknown:{id}>"))
     }
 
     pub fn add_token(&mut self, str: &String) -> &mut Self
@@ -143,36 +154,64 @@ impl fmt::Display for TokenManager {
 
         writeln!(f, "  productions:")?;
         for (i, prod) in self.productions.iter().enumerate() {
-            writeln!(f, "    ({i}) {prod}")?;
+            write!(f, "    ({i}) {} ->", self.get_token_name(prod.nt.id()))?;
+            for tok in prod.inputs.iter() {
+                write!(f, " {}", self.get_token_name(tok.id()))?;
+            }
+            writeln!(f, "")?;
         }
 
         write!(f, "}}")
     }
 }
 
-impl fmt::Display for Production {
+impl fmt::Debug for TokenManager {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ->", self.nt)?;
+        writeln!(f, "TokenManager {{")?;
+
+        writeln!(f, "  tokens:")?;
+        for (name, id) in &self.token {
+            let kind = if self.non_terminal_token.contains(id) {
+                "non-terminal"
+            } else {
+                "terminal"
+            };
+
+            writeln!(f, "    [{id}] {name} ({kind})")?;
+        }
+
+        writeln!(f, "  productions:")?;
+        for (i, prod) in self.productions.iter().enumerate() {
+            writeln!(f, "    ({i}) {:?}", prod)?;
+        }
+
+        write!(f, "}}")
+    }
+}
+
+impl fmt::Debug for Production {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?} ->", self.nt)?;
 
         for tok in &self.inputs {
-            write!(f, " {}", tok)?;
+            write!(f, " {:?}", tok)?;
         }
 
         Ok(())
     }
 }
 
-impl fmt::Display for Sym {
+impl fmt::Debug for Sym {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl fmt::Display for Token {
+impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::Term(t) => write!(f, "T{t}"),
-            Token::NonTerm(nt) => write!(f, "N{nt}"),
+            Token::Term(t) => write!(f, "T{:?}", t),
+            Token::NonTerm(nt) => write!(f, "N{:?}", nt),
         }
     }
 }
