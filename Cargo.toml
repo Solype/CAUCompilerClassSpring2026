@@ -1,5 +1,5 @@
 [package]
-name = "tree_analyzer"
+name = "syntax_analyzer"
 version = "0.1.0"
 edition = "2024"
 

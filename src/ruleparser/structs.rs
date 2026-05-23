@@ -45,17 +45,6 @@ impl Token {
             Token::NonTerm(t) => t.0.clone(),
         }
     }
-
-    pub fn is_term(&self) -> bool {
-        match self {
-            Token::Term(_) => true,
-            Token::NonTerm(_) => false,
-        }
-    }
-
-    pub fn is_non_term(&self) -> bool {
-        !self.is_term()
-    }
 }
 
 #[derive(Clone, Debug)]
