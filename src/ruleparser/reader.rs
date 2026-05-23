@@ -18,15 +18,9 @@ fn process_line(buffer: impl Into<String>) -> Option<RawProduction> {
         line[2..].to_vec()
     };
 
-    Some(RawProduction::new(
-        line[0].clone(),
-        inputs,
-    ))
+    Some(RawProduction::new(line[0].clone(), inputs))
 }
 
 pub fn parse_rules(buffer: &String) -> Vec<RawProduction> {
-    buffer
-        .split('\n')
-        .filter_map(process_line)
-        .collect()
+    buffer.split('\n').filter_map(process_line).collect()
 }

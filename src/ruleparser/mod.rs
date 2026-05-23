@@ -1,3 +1,3 @@
-pub mod structs;
-pub mod reader;
 pub mod default;
+pub mod reader;
+pub mod structs;
