@@ -152,10 +152,9 @@ impl Parser {
         &mut self,
         mut inputs: Vec<(Term, TokenMetadata)>,
     ) -> Result<Tree<TokenWithMetadata>, ParsingError> {
-        self.stack.push(StackValue::State(0));
+        self.stack = Vec::from([StackValue::State(0)]);
 
         inputs.reverse();
-        let mut step = 0;
         while !inputs.is_empty() {
             let stack_value = self.stack.last().unwrap().clone();
             match stack_value {
@@ -201,7 +200,6 @@ impl Parser {
                 }
                 StackValue::Token(node) => return Err(ParsingError(node.value)),
             };
-            step += 1;
         }
 
         Ok(Tree {
