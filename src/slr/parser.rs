@@ -1,340 +1,219 @@
 use core::fmt;
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    fs::Metadata,
-    hash::Hash,
+use std::error::Error;
+
+use crate::{
+    ruleparser::structs::{Term, Token, TokenMetadata},
+    slr::{
+        table::{Action, Goto, LRTable, Productions, StateId},
+        tree::{Tree, TreeNode},
+    },
 };
 
-use indexmap::IndexSet;
-
-use crate::ruleparser::structs::{END, EPSILON, NonTerm, Production, START, Sym, Term, Token, UNDEFINED};
-
-type StateId = usize;
-
 #[derive(Debug)]
-pub enum Action {
-    Shift(StateId),
-    Reduce(ProductionId),
-    Accept,
+pub struct ParsingError(TokenWithMetadata);
+
+#[derive(Debug, Clone)]
+pub struct TokenWithMetadata {
+    pub token: Token,
+    pub metadata: TokenMetadata,
 }
-type Goto = StateId;
-
-#[derive(Debug)]
-pub struct Transition {
-    from: StateId,
-    symbol: Token,
-    result: StateId,
-}
-
-type ProductionId = usize;
-
-pub type Productions = IndexSet<Production>;
-
-type FirstSet = HashSet<Term>;
-type FollowSet = HashSet<Term>;
-
-type FirstTable = BTreeMap<NonTerm, FirstSet>;
-type FollowTable = BTreeMap<NonTerm, FollowSet>;
-
-#[derive(Debug)]
-pub struct FirstFollowSets {
-    pub first: FirstTable,
-    pub follow: FollowTable,
-}
-impl FirstFollowSets {
-    fn new(productions: &Productions) -> Self {
-        let first_table = Self::build_first(productions);
-        let follow_table = Self::build_follow(&first_table, productions);
-        Self {
-            first: first_table,
-            follow: follow_table,
-        }
-    }
-
-    fn build_first(productions: &Productions) -> FirstTable {
-        let mut table = FirstTable::new();
-        for Production { nt, .. } in productions {
-            table.insert(nt.clone(), FirstSet::new());
-        }
-
-        let mut changed = true;
-
-        while changed {
-            changed = false;
-
-            for Production { nt, inputs } in productions {
-                let Some(symbol) = inputs.first() else {
-                    changed |= table.get_mut(&nt).unwrap().insert(EPSILON);
-
-                    continue;
-                };
-
-                let firsts = match symbol {
-                    Token::Term(t) => FirstSet::from([t.clone()]),
-
-                    Token::NonTerm(nt) => table.get(nt).cloned().unwrap(),
-                };
-                for first in firsts {
-                    changed |= table.get_mut(&nt).unwrap().insert(first);
-                }
-            }
-        }
-
-        table
-    }
-
-    fn build_follow(first_table: &FirstTable, productions: &Productions) -> FollowTable {
-        let mut table = FollowTable::new();
-        for Production { nt, .. } in productions {
-            table.insert(
-                nt.clone(),
-                if nt == &productions.first().unwrap().nt {
-                    FollowSet::from([END])
-                } else {
-                    FollowSet::from([UNDEFINED])
-                },
-            );
-        }
-
-        let mut changed = true;
-
-        while changed {
-            changed = false;
-
-            for Production { nt, inputs } in productions {
-                for (i, symbol) in inputs.iter().enumerate() {
-                    let Token::NonTerm(followed) = symbol else {
-                        continue;
-                    };
-
-                    let follows = match inputs.get(i + 1) {
-                        Some(Token::Term(t)) => FollowSet::from([t.clone()]),
-
-                        Some(Token::NonTerm(nt)) => {
-                            let mut nt_first = first_table.get(nt).cloned().unwrap();
-                            if nt_first.contains(&EPSILON) {
-                                nt_first.extend(table.get(&nt).cloned().unwrap());
-                            }
-                            nt_first
-                        }
-
-                        None => table.get(&nt).cloned().unwrap(),
-                    };
-                    for follow in follows.iter().filter(|t| {
-                        ![EPSILON, UNDEFINED].contains(t)
-                    }) {
-                        table
-                            .get_mut(followed)
-                            .unwrap()
-                            .remove(&UNDEFINED);
-                        changed |= table.get_mut(followed).unwrap().insert(follow.clone());
-                    }
-                }
-            }
-        }
-
-        table
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct LRItem {
-    production: Production,
-    dot: usize,
-}
-impl fmt::Display for LRItem {
+impl fmt::Display for TokenWithMetadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} ->", self.production.nt)?;
-
-        for (i, symbol) in self.production.inputs.iter().enumerate() {
-            if i == self.dot {
-                write!(f, " .")?;
-            }
-
-            write!(f, " {:?}", symbol)?;
+        match &self.token {
+            Token::Term(t) => write!(f, "{:?}", t),
+            Token::NonTerm(nt) => write!(f, "{:?}", nt),
         }
+    }
+}
 
-        if self.dot == self.production.inputs.len() {
-            write!(f, " .")?;
-        }
+impl Error for ParsingError {}
+
+impl fmt::Display for ParsingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let t_m = &self.0;
+        write!(
+            f,
+            "Unexpected token at {}:{}\n",
+            t_m.metadata.span.0, t_m.metadata.span.1,
+        )?;
+        write!(f, "\t|\n")?;
+        write!(f, " {}\t|\t{}\n", t_m.metadata.span.0, t_m.metadata.line)?;
+        write!(
+            f,
+            "\t|\t{}{}\n",
+            " ".repeat(t_m.metadata.span.1 - 1),
+            "^".repeat(t_m.metadata.str.len())
+        )?;
 
         Ok(())
     }
 }
-pub type State = BTreeSet<LRItem>;
-pub struct LRItems {
-    states: IndexSet<State>,
-    transitions: Vec<Transition>,
+
+#[derive(Clone)]
+enum StackValue {
+    State(StateId),
+    Token(TreeNode<TokenWithMetadata>),
 }
-impl LRItems {
-    fn closure_items(nt: &NonTerm, dot: usize, productions: &Productions) -> Vec<LRItem> {
-        productions
-            .iter()
-            .filter_map(|production| {
-                if nt == &production.nt {
-                    Some(LRItem {
-                        production: production.clone(),
-                        dot,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
 
-    fn closure(mut state: State, productions: &Productions) -> State {
-        let mut changed = true;
-        let mut to_add = vec![];
-        while changed {
-            changed = false;
-            for item in &state {
-                if let Some(Token::NonTerm(nt)) = item.production.inputs.get(item.dot) {
-                    to_add.extend(Self::closure_items(nt, 0, productions));
-                }
+impl fmt::Debug for StackValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            StackValue::State(s) => write!(f, "State({})", s)?,
+            StackValue::Token(TreeNode { value: t_m, .. }) => {
+                write!(f, "Token({})", t_m.metadata.str)?
             }
-
-            while !to_add.is_empty() {
-                let new_item = to_add.pop().unwrap();
-                changed |= state.insert(new_item);
-            }
-        }
-
-        state
-    }
-
-    fn goto(from_state: &State, symbol: &Token) -> State {
-        let mut new_state = State::new();
-        for item in from_state {
-            if item.production.inputs.get(item.dot) == Some(symbol) {
-                let mut new_item = item.clone();
-                new_item.dot = item.dot + 1;
-                new_state.insert(new_item.clone());
-            }
-        }
-
-        new_state
-    }
-
-    pub fn new(productions: &Productions) -> Self {
-        let start_production = Production::new(
-            START,
-            vec![Token::NonTerm(productions.first().unwrap().nt.clone())],
-        );
-
-        let mut start_state = State::from([LRItem {
-            production: start_production,
-            dot: 0,
-        }]);
-
-        start_state = Self::closure(start_state, &productions);
-
-        let mut lr_items = LRItems {
-            states: IndexSet::from([start_state.clone()]),
-            transitions: vec![],
         };
 
-        let mut new_states = vec![start_state.clone()];
-        while !new_states.is_empty() {
-            let from_state = new_states.pop().unwrap();
-
-            let mut next_symbols = HashSet::new();
-            next_symbols.extend(
-                from_state
-                    .iter()
-                    .map(|item| item.production.inputs.get(item.dot))
-                    .flatten(),
-            );
-            for next_symbol in next_symbols {
-                let mut new_state = Self::goto(&from_state, next_symbol);
-                new_state = Self::closure(new_state, productions);
-                if lr_items.states.insert(new_state.clone()) {
-                    new_states.push(new_state.clone());
-                }
-                lr_items.transitions.push(Transition {
-                    from: lr_items.states.get_index_of(&from_state).unwrap(),
-                    symbol: next_symbol.clone(),
-                    result: lr_items.states.get_index_of(&new_state).unwrap(),
-                })
-            }
-        }
-
-        lr_items
+        Ok(())
     }
 }
-pub struct LRTable {
-    pub lr_items: LRItems,
-    pub actions: HashMap<(StateId, Term), Action>,
-    pub gotos: HashMap<(StateId, NonTerm), Goto>,
+
+pub struct Parser {
+    lr_table: LRTable,
+    productions: Productions,
+    stack: Vec<StackValue>,
 }
 
-impl LRTable {
+impl Parser {
     pub fn new(productions: &Productions) -> Self {
-        let first_follow = FirstFollowSets::new(productions);
-
-        let lr_items = LRItems::new(productions);
-        let mut actions = HashMap::new();
-        let mut gotos = HashMap::new();
-        for transition in lr_items.transitions.iter() {
-            match transition.symbol.clone() {
-                Token::Term(t) => {
-                    actions.insert((transition.from, t), Action::Shift(transition.result));
-                }
-                Token::NonTerm(nt) => {
-                    gotos.insert((transition.from, nt), transition.result);
-                }
-            }
+        Self {
+            lr_table: LRTable::new(productions),
+            productions: productions.clone(),
+            stack: vec![],
         }
-        lr_items.states.iter().enumerate().for_each(|(id, state)| {
-            state.iter().for_each(|item| {
-                if item.dot == item.production.inputs.len() {
-                    if item.production.nt == START {
-                        actions.insert((id, END), Action::Accept);
-                    } else {
-                        first_follow
-                            .follow
-                            .get(&item.production.nt)
-                            .unwrap()
-                            .iter()
-                            .for_each(|t| {
-                                actions.insert(
-                                    (id, t.clone()),
-                                    Action::Reduce(
-                                        productions.get_index_of(&item.production).unwrap(),
-                                    ),
-                                );
-                            });
+    }
+
+    fn action(&mut self, action: &Action, inputs: &mut Vec<(Term, TokenMetadata)>) {
+        match action {
+            Action::Shift(state_id) => {
+                let (term, metadata) = inputs.pop().unwrap().clone();
+
+                let node = TreeNode {
+                    value: TokenWithMetadata {
+                        token: Token::Term(term.clone()),
+                        metadata,
+                    },
+                    children: vec![],
+                };
+                self.stack.push(StackValue::Token(node.clone()));
+                self.stack.push(StackValue::State(*state_id));
+            }
+            Action::Reduce(rule_id) => {
+                let production = self.productions.get_index(*rule_id).unwrap();
+
+                let mut to_take = production.inputs.len();
+                let mut children = vec![];
+                while to_take != 0 {
+                    let last = self.stack.pop().unwrap();
+                    if let StackValue::Token(t) = last {
+                        children.push(t);
+                        to_take -= 1;
                     }
                 }
-            })
-        });
+                children.reverse();
 
-        Self {
-            lr_items,
-            actions,
-            gotos,
+                let new_metadata = if let Some((first, nexts)) = children.split_first() {
+                    let mut t_metadata = TokenMetadata {
+                        span: first.value.metadata.span,
+                        str: first.value.metadata.str.clone(),
+                        line: first.value.metadata.line.clone(),
+                    };
+                    nexts.iter().for_each(|TreeNode { value: t_m, .. }| {
+                        t_metadata
+                            .str
+                            .push_str(&(" ".to_owned() + &t_m.metadata.str)); //todo space size
+                        t_metadata.line = t_metadata.line.to_owned() + t_m.metadata.line.as_str(); //todo line vec
+                    });
+                    t_metadata
+                } else {
+                    TokenMetadata::default()
+                };
+                let new_node = TreeNode {
+                    value: TokenWithMetadata {
+                        token: Token::NonTerm(production.nt.clone()),
+                        metadata: new_metadata,
+                    },
+                    children,
+                };
+
+                self.stack.push(StackValue::Token(new_node));
+            }
+            Action::Accept => {
+                inputs.pop();
+            }
         }
     }
-}
-impl fmt::Display for LRTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (state_id, _) in self.lr_items.states.iter().enumerate() {
-            write!(f, "s{}\t|", state_id)?;
 
-            let state_actions = self.actions.iter().filter(|((id, _), _)| *id == state_id);
-            for ((_, t), state_action) in state_actions {
-                write!(f, "\t{:?}={:?}", t, state_action)?;
-            }
+    fn goto(&mut self, goto: Goto) {
+        self.stack.push(StackValue::State(goto));
+    }
 
-            let state_gotos = self.gotos.iter().filter(|((id, _), _)| *id == state_id);
-            write!(f, "\t||")?;
-            for ((_, t), state_goto) in state_gotos {
-                write!(f, "\t{:?}={:?}", t, state_goto)?;
-            }
+    pub fn parse(
+        &mut self,
+        mut inputs: Vec<(Term, TokenMetadata)>,
+    ) -> Result<Tree<TokenWithMetadata>, ParsingError> {
+        self.stack.push(StackValue::State(0));
 
-            write!(f, "\n")?;
+        inputs.reverse();
+        let mut step = 0;
+        while !inputs.is_empty() {
+            let stack_value = self.stack.last().unwrap().clone();
+            match stack_value {
+                StackValue::State(state_id) => {
+                    let (term, m) = inputs.last().unwrap().clone();
+
+                    let Some(action) = self
+                        .lr_table
+                        .actions
+                        .get(&(state_id, term.clone()))
+                        .cloned()
+                    else {
+                        return Err(ParsingError(TokenWithMetadata {
+                            token: Token::Term(term.clone()),
+                            metadata: m,
+                        }));
+                    };
+
+                    self.action(&action, &mut inputs);
+                }
+                StackValue::Token(TreeNode {
+                    value:
+                        TokenWithMetadata {
+                            token: Token::NonTerm(nt),
+                            ..
+                        },
+                    ..
+                }) => {
+                    let StackValue::State(state) = self.stack.iter().rev().nth(1).unwrap() else {
+                        panic!("An error occured");
+                    };
+
+                    let Some(goto) = self.lr_table.gotos.get(&(*state, nt.clone())).cloned() else {
+                        let (term, m) = inputs.last().unwrap().clone();
+
+                        return Err(ParsingError(TokenWithMetadata {
+                            token: Token::Term(term.clone()),
+                            metadata: m,
+                        }));
+                    };
+
+                    self.goto(goto);
+                }
+                StackValue::Token(node) => return Err(ParsingError(node.value)),
+            };
+            step += 1;
         }
 
-        Ok(())
+        Ok(Tree {
+            root: {
+                self.stack
+                    .drain(..)
+                    .find_map(|v| match v {
+                        StackValue::Token(node) => Some(node),
+                        _ => None,
+                    })
+                    .unwrap()
+            },
+        })
     }
 }

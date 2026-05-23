@@ -1,2 +1,3 @@
 pub mod parser;
-mod table;
+pub mod table;
+pub mod tree;
