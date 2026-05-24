@@ -1,3 +1,5 @@
+use owo_colors::OwoColorize;
+
 pub fn file_error(
     file_name: &String,
     line_number: usize,
@@ -6,22 +8,34 @@ pub fn file_error(
     line: &String,
     error_message: &String
 ) -> String {
-    let underline = format!("{}{}", " ".repeat(col_number - 1), "^".repeat(size));
+    let underline = format!(
+        "{}{}",
+        " ".repeat(col_number - 1),
+        "^".repeat(size)
+    );
+
     format!(
         concat!(
-            "\nSynthax error\n",
-            " --> {}:{}:{}\n",
+            "{}\n",
+            " {} {}:{}:{}\n",
             "     |\n",
             " {:>3} | {}\n",
             "     | {}\n",
             "     | {}",
         ),
-        file_name,
+
+        "Syntax error".red().bold(),
+
+        "-->".blue().bold(),
+        file_name.cyan(),
         line_number,
         col_number,
-        line_number,
+
+        line_number.to_string().blue(),
         line,
-        underline,
-        error_message
+
+        underline.red().bold(),
+
+        error_message.red()
     )
 }
