@@ -1,51 +1,24 @@
 use core::fmt;
-use std::error::Error;
 
 use crate::{
-    ruleparser::structs::{Term, Token, TokenMetadata},
-    slr::{
+    error::token_error, ruleparser::structs::{Term, Token, TokenMetadata}, slr::{
         table::{Action, Goto, LRTable, Productions, StateId},
         tree::{Tree, TreeNode},
-    },
+    }
 };
-
-#[derive(Debug)]
-pub struct ParsingError(TokenWithMetadata);
 
 #[derive(Debug, Clone)]
 pub struct TokenWithMetadata {
     pub token: Token,
     pub metadata: TokenMetadata,
 }
+
 impl fmt::Display for TokenWithMetadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.token {
             Token::Term(t) => write!(f, "{:?}", t),
             Token::NonTerm(nt) => write!(f, "{:?}", nt),
         }
-    }
-}
-
-impl Error for ParsingError {}
-
-impl fmt::Display for ParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let t_m = &self.0;
-        write!(
-            f,
-            "Unexpected token at {}:{}\n",
-            t_m.metadata.span.0, t_m.metadata.span.1,
-        )?;
-        write!(f, "\t|\n")?;
-        write!(f, " {}\t|\t{}\n", t_m.metadata.span.0, t_m.metadata.line)?;
-        write!(
-            f,
-            "\t|\t{}{}\n",
-            " ".repeat(t_m.metadata.span.1 - 1),
-            "^".repeat(t_m.metadata.str.len())
-        )?;
-
-        Ok(())
     }
 }
 
@@ -151,7 +124,7 @@ impl Parser {
     pub fn parse(
         &mut self,
         mut inputs: Vec<(Term, TokenMetadata)>,
-    ) -> Result<Tree<TokenWithMetadata>, ParsingError> {
+    ) -> Result<Tree<TokenWithMetadata>, String> {
         self.stack = Vec::from([StackValue::State(0)]);
 
         inputs.reverse();
@@ -167,10 +140,7 @@ impl Parser {
                         .get(&(state_id, term.clone()))
                         .cloned()
                     else {
-                        return Err(ParsingError(TokenWithMetadata {
-                            token: Token::Term(term.clone()),
-                            metadata: m,
-                        }));
+                        return Err(token_error(TokenWithMetadata {token: Token::Term(term.clone()), metadata: m, }));
                     };
 
                     self.action(&action, &mut inputs);
@@ -190,15 +160,12 @@ impl Parser {
                     let Some(goto) = self.lr_table.gotos.get(&(*state, nt.clone())).cloned() else {
                         let (term, m) = inputs.last().unwrap().clone();
 
-                        return Err(ParsingError(TokenWithMetadata {
-                            token: Token::Term(term.clone()),
-                            metadata: m,
-                        }));
+                        return Err(token_error(TokenWithMetadata { token: Token::Term(term.clone()), metadata: m,}));
                     };
 
                     self.goto(goto);
                 }
-                StackValue::Token(node) => return Err(ParsingError(node.value)),
+                StackValue::Token(node) => return Err(token_error(node.value)),
             };
         }
 

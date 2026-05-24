@@ -28,15 +28,27 @@ fn main() -> Result<(), String> {
             return Err("Due to previous error, the program will stop".to_string());
         }
     };
-    rules.add_productions(&productions);
+    match rules.add_productions(&productions) {
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err("Due to previous error, the program will stop".to_string());
+        }
+        _ => {}
+    }
 
-    let tokens = rules.scan_tokens(&input.input_tokens);
+    let tokens = match rules.scan_tokens(&input.input_tokens) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err("Due to previous error, the program will stop".to_string());
+        }
+    };
 
     let mut parser = slr::parser::Parser::new(&rules.get_production());
 
     match parser.parse(tokens) {
         Ok(tree) => display_node(&tree.root, 0, &rules),
-        Err(e) => println!("{}", e),
+        Err(e) => eprintln!("{}", e),
     }
     return Ok(())
 }
