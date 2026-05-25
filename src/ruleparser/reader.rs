@@ -22,14 +22,14 @@ fn process_line(infos: (usize, impl Into<String>),) -> Result<Option<RawProducti
     if line.len() < 3 {
         let line_size = raw.len();
         let err_message = "Each rule must have at least have 3 arguments, put '' in case of empty arguments".to_string();
-        return Err(file_error(&"Rule file".to_string(), line_number, line_size, 1, &raw, &err_message));
+        return Err(file_error(&"Rules".to_string(), line_number, line_size, 1, &raw, &err_message));
     }
 
     // Vérifie la présence de ->
     if line[1] != "->" {
         let col = raw.find(&line[1]).unwrap_or(0) + 1;
         let err_message = format!("Expected symbol : '->', found: '{}'", line[1]);
-        return Err(file_error(&"Rule file".to_string(), line_number, col, line[1].len(), &raw, &err_message));
+        return Err(file_error(&"Rules".to_string(), line_number, col, line[1].len(), &raw, &err_message));
     }
 
     let inputs = if line.len() == 3 && line[2] == "''" {

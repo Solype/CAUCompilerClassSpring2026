@@ -230,79 +230,77 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
-pub fn scan_tokens(
-    &self,
-    buffer: &String,
-) -> Result<Vec<(Term, TokenMetadata)>, String> {
+    pub fn scan_tokens(
+        &self,
+        buffer: &String,
+    ) -> Result<Vec<(Term, TokenMetadata)>, String> {
 
-    let mut tokens: Vec<(Term, TokenMetadata)> = vec![];
+        let mut tokens: Vec<(Term, TokenMetadata)> = vec![];
 
-    let lines: Vec<&str> = buffer.split('\n').collect();
+        let lines: Vec<&str> = buffer.split('\n').collect();
 
-    for (line_idx, line_buffer) in lines.iter().enumerate() {
+        for (line_idx, line_buffer) in lines.iter().enumerate() {
 
-        let mut col = 1;
+            let mut col = 1;
 
-        for raw_token in line_buffer.split(&[' ', '\t']) {
+            for raw_token in line_buffer.split(&[' ', '\t']) {
 
-            if raw_token.is_empty() {
-                col += 1;
-                continue;
-            }
+                if raw_token.is_empty() {
+                    col += 1;
+                    continue;
+                }
 
-            let metadata = TokenMetadata {
-                span: (line_idx + 1, col),
-                str: raw_token.to_string(),
-                line: (*line_buffer).to_string(),
-            };
+                let metadata = TokenMetadata {
+                    span: (line_idx + 1, col),
+                    str: raw_token.to_string(),
+                    line: (*line_buffer).to_string(),
+                };
 
-            let token = self
-                .get_token(&raw_token.to_string())
-                .map_err(|_| {
-                    file_error(
-                        &"input.txt".to_string(),
+                let token = self
+                    .get_token(&raw_token.to_string())
+                    .map_err(|_| {
+                        file_error(
+                            &"Tokens".to_string(),
+                            line_idx + 1,
+                            col,
+                            raw_token.len(),
+                            &line_buffer.to_string(),
+                            &format!("Unknown token '{}'", raw_token),
+                        )
+                    })?;
+
+                let Token::Term(term) = token else {
+                    return Err(file_error(
+                        &"Tokens".to_string(),
                         line_idx + 1,
                         col,
                         raw_token.len(),
                         &line_buffer.to_string(),
-                        &format!("Unknown token '{}'", raw_token),
-                    )
-                })?;
+                        &format!("'{}' is not a terminal token", raw_token
+                        ),
+                    ));
+                };
 
-            let Token::Term(term) = token else {
-                return Err(file_error(
-                    &"input.txt".to_string(),
-                    line_idx + 1,
-                    col,
-                    raw_token.len(),
-                    &line_buffer.to_string(),
-                    &format!(
-                        "'{}' is not a terminal token",
-                        raw_token
-                    ),
-                ));
-            };
+                tokens.push((term, metadata));
 
-            tokens.push((term, metadata));
-
-            col += raw_token.len() + 1;
+                col += raw_token.len() + 1;
+            }
         }
+
+        let last_line = lines.last().unwrap_or(&"");
+
+        tokens.push((
+            END,
+            TokenMetadata {
+                span: (lines.len(), last_line.len() + 1),
+                str: "$".to_string(),
+                line: (*last_line).to_string(),
+            },
+        ));
+
+        Ok(tokens)
     }
-
-    let last_line = lines.last().unwrap_or(&"");
-
-    tokens.push((
-        END,
-        TokenMetadata {
-            span: (lines.len(), last_line.len() + 1),
-            str: "$".to_string(),
-            line: (*last_line).to_string(),
-        },
-    ));
-
-    Ok(tokens)
-}
-}
+    }
 
 ////////////////////////////////////////////////////////////////
 /// DISPLAY

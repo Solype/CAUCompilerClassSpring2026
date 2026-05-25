@@ -17,38 +17,30 @@ fn display_node(node: &TreeNode<TokenWithMetadata>, depth: usize, token_manager:
     }
 }
 
-fn main() -> Result<(), String> {
-    let input = get_rule_and_input();
+fn run() -> Result<(), String> {
+    let input = get_rule_and_input()?;
 
     let mut rules = ruleparser::structs::TokenManager::new();
-    let productions = match parse_rules(&input.rules) {
-        Ok(val) => val,
-        Err(e) => {
-            eprintln!("{}", e);
-            return Err("Due to previous error, the program will stop".to_string());
-        }
-    };
-    match rules.add_productions(&productions) {
-        Err(e) => {
-            eprintln!("{}", e);
-            return Err("Due to previous error, the program will stop".to_string());
-        }
-        _ => {}
-    }
 
-    let tokens = match rules.scan_tokens(&input.input_tokens) {
-        Ok(val) => val,
-        Err(e) => {
-            eprintln!("{}", e);
-            return Err("Due to previous error, the program will stop".to_string());
-        }
-    };
+    let productions = parse_rules(&input.rules)?;
+
+    rules.add_productions(&productions)?;
+
+    let tokens = rules.scan_tokens(&input.input_tokens)?;
 
     let mut parser = slr::parser::Parser::new(&rules.get_production());
 
-    match parser.parse(tokens) {
-        Ok(tree) => display_node(&tree.root, 0, &rules),
-        Err(e) => eprintln!("{}", e),
+    let tree = parser.parse(tokens)?;
+
+    display_node(&tree.root, 0, &rules);
+
+    Ok(())
+}
+
+fn main() -> Result<(), String> {
+    if let Err(e) = run() {
+        eprintln!("{}", e);
+        return Err("Due to previous error, the program will stop".to_string());
     }
-    return Ok(())
+    Ok(())
 }
