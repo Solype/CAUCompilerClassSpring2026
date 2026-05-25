@@ -3,8 +3,13 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use indexmap::IndexSet;
 
-use crate::ruleparser::structs::{
-    END, EPSILON, NonTerm, Production, START, Term, Token, UNDEFINED,
+use crate::ruleparser::{
+    structs::{
+        END, EPSILON, START, UNDEFINED,
+    },
+    rules_and_tokens::{
+        NonTerm, Production, Term, Token,
+    }
 };
 
 pub type StateId = usize;
@@ -34,6 +39,7 @@ type FollowSet = HashSet<Term>;
 type FirstTable = BTreeMap<NonTerm, FirstSet>;
 type FollowTable = BTreeMap<NonTerm, FollowSet>;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FirstFollowSets {
     pub first: FirstTable,

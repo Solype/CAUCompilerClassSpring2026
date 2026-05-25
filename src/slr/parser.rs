@@ -1,7 +1,7 @@
 use core::fmt;
 
 use crate::{
-    error::token_error, ruleparser::structs::{Term, Token, TokenMetadata}, slr::{
+    error::token_error, ruleparser::rules_and_tokens::{Term, Token, TokenMetadata}, slr::{
         table::{Action, Goto, LRTable, Productions, StateId},
         tree::{Tree, TreeNode},
     }

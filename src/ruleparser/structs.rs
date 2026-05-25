@@ -1,122 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexSet;
-
-////////////////////////////////////////////////////////////////
-/// TOKENS
-////////////////////////////////////////////////////////////////
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub struct Sym(usize);
-
-impl Sym {
-    fn to_term(&self) -> Term {
-        Term(self.clone())
-    }
-
-    fn to_non_term(&self) -> NonTerm {
-        NonTerm(self.clone())
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct NonTerm(Sym);
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct Term(Sym);
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub enum Token {
-    Term(Term),
-    NonTerm(NonTerm),
-}
-
-impl Token {
-    pub fn id(&self) -> usize {
-        match self {
-            Token::Term(t) => t.0.0,
-            Token::NonTerm(t) => t.0.0,
-        }
-    }
-
-    pub fn sym(&self) -> Sym {
-        match self {
-            Token::Term(t) => t.0.clone(),
-            Token::NonTerm(t) => t.0.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct TokenMetadata {
-    pub span: (usize, usize),
-    pub str: String,
-    pub line: String,
-}
-impl Default for TokenMetadata {
-    fn default() -> Self {
-        Self {
-            span: (1, 1),
-            str: "".to_string(),
-            line: "".to_string(),
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////
-/// PRODUCTION
-////////////////////////////////////////////////////////////////
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-struct SimpleProduction {
-    nt: Sym,
-    inputs: Vec<Sym>,
-}
-
-impl SimpleProduction {
-    fn to_production(&self, nt_set: &HashSet<usize>) -> Production {
-        Production {
-            nt: self.nt.to_non_term(),
-            inputs: self
-                .inputs
-                .iter()
-                .map(|x| {
-                    if nt_set.get(&x.0).is_none() {
-                        Token::Term(x.to_term())
-                    } else {
-                        Token::NonTerm(x.to_non_term())
-                    }
-                })
-                .collect(),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub struct Production {
-    pub nt: NonTerm,
-    pub inputs: Vec<Token>,
-}
-
-impl Production {
-    pub fn new(nt: NonTerm, inputs: Vec<Token>) -> Self {
-        Self { nt, inputs }
-    }
-}
-
-pub struct RawProduction {
-    nt: String,
-    inputs: Vec<String>,
-}
-
-impl RawProduction {
-    pub fn new<T: Into<String>>(nt: impl Into<String>, inputs: Vec<T>) -> Self {
-        Self {
-            nt: nt.into(),
-            inputs: inputs.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
+use super::rules_and_tokens::*;
 
 ////////////////////////////////////////////////////////////////
 /// HANDLER
@@ -141,10 +26,10 @@ impl TokenManager {
             productions: IndexSet::<SimpleProduction>::new(),
         };
 
-        new_var.add_token(&"START".to_string()); // 0
-        new_var.add_token(&"EPSILON".to_string()); // 1
-        new_var.add_token(&"END".to_string()); // 2
-        new_var.add_token(&"UNDEFINED".to_string()); // 3
+        new_var.add_token(&"START".to_string());        // 0
+        new_var.add_token(&"EPSILON".to_string());      // 1
+        new_var.add_token(&"END".to_string());          // 2
+        new_var.add_token(&"UNDEFINED".to_string());    // 3
 
         new_var
     }
@@ -230,6 +115,13 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
+    fn parse_token_in_line(&self, raw_token: &str, vec: &mut Vec<(Term, TokenMetadata)>)
+    {
+        if raw_token.is_empty() {
+            return;
+        }
+    }
+
     pub fn scan_tokens(
         &self,
         buffer: &String,
@@ -300,7 +192,7 @@ impl TokenManager {
 
         Ok(tokens)
     }
-    }
+}
 
 ////////////////////////////////////////////////////////////////
 /// DISPLAY

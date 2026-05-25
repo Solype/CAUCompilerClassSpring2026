@@ -1,6 +1,6 @@
 use crate::error::file_error;
 
-use super::structs::RawProduction;
+use super::rules_and_tokens::RawProduction;
 
 fn process_line(infos: (usize, impl Into<String>),) -> Result<Option<RawProduction>, String>
 {
