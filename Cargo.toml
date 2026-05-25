@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 indexmap = "2.14.0"
 owo-colors = "4"
+regex = "1.12.3"
