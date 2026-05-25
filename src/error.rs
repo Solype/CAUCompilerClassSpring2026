@@ -23,9 +23,10 @@ pub fn file_error(
     line: &String,
     error_message: &String
 ) -> String {
+    let underline_col = if col_number == 0 { 0 } else { col_number - 1 };
     let underline = format!(
         "{}{}",
-        " ".repeat(col_number - 1),
+        " ".repeat(underline_col),
         "^".repeat(size)
     );
 

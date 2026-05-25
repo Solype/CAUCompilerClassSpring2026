@@ -83,26 +83,21 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
             }
         }
     }
-    println!("before setting rules");
     let rules = match rules_file {
         Some(path) => read_source(Some(path))?,
         None => DEFAULT_RULES.to_string(),
     };
 
-    println!("before setting input tokens");
     let input_tokens = match token_file {
         Some(path) => read_source(Some(path))?,
         None => read_source(None)?,
     };
 
-    println!("before setting regex");
     let regex = match (regex_file, use_regex) {
         (_, false) => None,
         (Some(path), true) => Some(read_source(Some(path))?),
         (None, true) => None,
     };
-
-    eprintln!("{:?} {}", regex, use_regex);
 
     Ok(Parameters { rules, input_tokens, regex, use_regex })
 }

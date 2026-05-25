@@ -6,7 +6,7 @@ mod helper;
 
 use crate::{
     input::{Parameters, get_rule_and_input},
-    ruleparser::{reader::parse_rules, regex_tokenizer::RegexTokenizer, rules_and_tokens::TokenMetadata, structs::TokenManager},
+    ruleparser::{reader::parse_rules, regex_tokenizer::RegexTokenizer, rules_and_tokens::{Token, TokenMetadata}, structs::TokenManager},
     slr::{parser::TokenWithMetadata, tree::TreeNode},
 };
 
@@ -18,8 +18,7 @@ pub fn display_node(
     is_last: bool,
     token_manager: &TokenManager,
 ) {
-    let token_name = token_manager
-        .get_token_name(node.value.token.id());
+    let token_name = token_manager.get_token_name(node.value.token.id());
 
     let connector = if is_last {
         "└──"
@@ -27,12 +26,22 @@ pub fn display_node(
         "├──"
     };
 
-    println!(
-        "{}{} {}",
-        prefix,
-        connector.bright_blue(),
-        token_name.bright_green().bold()
-    );
+    if let Token::Term(_) = node.value.token && node.value.metadata.str != token_name {
+        println!(
+            "{}{} {} token({})",
+            prefix,
+            connector.bright_blue(),
+            node.value.metadata.str.green(),
+            token_name.white().bold()
+        );
+    } else {
+        println!(
+            "{}{} {}",
+            prefix,
+            connector.bright_blue(),
+            token_name.white().bold()
+        );
+    }
 
     let child_prefix = if is_last {
         format!("{}    ", prefix)
@@ -58,7 +67,6 @@ fn cook_tokens(input: &Parameters, rules: &TokenManager) -> Result<Vec<(String, 
 
     let cooked_tokens = if input.use_regex {
         if let Some(regex_file_content) = &input.regex {
-            println!("parsing file content for regex");
             reg.parse_file_content(&regex_file_content)?
         } else {
             reg.set_default_rules();
@@ -84,7 +92,7 @@ fn run() -> Result<(), String> {
     let mut parser = slr::parser::Parser::new(&rules.get_production());
     let tree = parser.parse(tokens)?;
 
-    display_node(&tree.root, String::new(), false, &rules);
+    display_node(&tree.root, String::new(), true, &rules);
 
     Ok(())
 }
