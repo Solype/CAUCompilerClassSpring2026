@@ -1,6 +1,7 @@
 mod input;
 mod ruleparser;
 mod slr;
+mod error;
 
 use crate::{
     input::get_rule_and_input,
@@ -16,18 +17,38 @@ fn display_node(node: &TreeNode<TokenWithMetadata>, depth: usize, token_manager:
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     let input = get_rule_and_input();
 
     let mut rules = ruleparser::structs::TokenManager::new();
-    rules.add_productions(&parse_rules(&input.rules));
+    let productions = match parse_rules(&input.rules) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err("Due to previous error, the program will stop".to_string());
+        }
+    };
+    match rules.add_productions(&productions) {
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err("Due to previous error, the program will stop".to_string());
+        }
+        _ => {}
+    }
 
-    let tokens = rules.scan_tokens(&input.input_tokens);
+    let tokens = match rules.scan_tokens(&input.input_tokens) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err("Due to previous error, the program will stop".to_string());
+        }
+    };
 
     let mut parser = slr::parser::Parser::new(&rules.get_production());
 
     match parser.parse(tokens) {
         Ok(tree) => display_node(&tree.root, 0, &rules),
-        Err(e) => println!("{}", e),
+        Err(e) => eprintln!("{}", e),
     }
+    return Ok(())
 }

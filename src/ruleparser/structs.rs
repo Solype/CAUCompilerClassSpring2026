@@ -149,14 +149,14 @@ impl TokenManager {
         new_var
     }
 
-    pub fn get_token(&self, str: &String) -> Token {
+    pub fn get_token(&self, str: &String) -> Result<Token, String> {
         if let Some(id) = self.token.get(str) {
             if self.non_terminal_token.get(&id).is_some() {
-                return Token::NonTerm(Sym(*id).to_non_term());
+                return Ok(Token::NonTerm(Sym(*id).to_non_term()));
             }
-            return Token::Term(Sym(*id).to_term());
+            return Ok(Token::Term(Sym(*id).to_term()));
         }
-        panic!("The token cannot be retrieved, it does not exists");
+        return Err(format!("the token '{}' does not exists", str));
     }
 
     pub fn get_token_name(&self, id: usize) -> String {
@@ -178,35 +178,49 @@ impl TokenManager {
         return self;
     }
 
-    fn create_production(&self, prod: &RawProduction) -> SimpleProduction {
-        let prod = SimpleProduction {
-            nt: self.get_token(&prod.nt).sym(),
-            inputs: prod
-                .inputs
-                .iter()
-                .map(|x| self.get_token(x).sym())
-                .collect(),
-        };
-        return prod;
+    fn create_production(
+        &self,
+        prod: &RawProduction,
+    ) -> Result<SimpleProduction, String> {
+
+        let nt = self.get_token(&prod.nt).map_err(|_| {
+                format!("Unknown token '{}' in production left side", prod.nt)
+            })?.sym();
+
+        let mut inputs = Vec::new();
+
+        for token in &prod.inputs {
+            let sym = self.get_token(token)
+                .map_err(|_| {
+                    format!( "Unknown token '{}' in production '{} -> {}'", token, prod.nt, prod.inputs.join(" ") )
+                })?.sym();
+
+            inputs.push(sym);
+        }
+
+        Ok(SimpleProduction {
+            nt,
+            inputs,
+        })
     }
 
-    pub fn add_production(&mut self, prod: &RawProduction) -> &mut Self {
+    pub fn add_production(&mut self, prod: &RawProduction) -> Result<&mut Self, String> {
         self.add_token(&prod.nt);
         for elem in prod.inputs.iter() {
             self.add_token(elem);
         }
         self.non_terminal_token
-            .insert(self.get_token(&prod.nt).id());
-        let new_prod = self.create_production(prod);
+            .insert(self.get_token(&prod.nt)?.id());
+        let new_prod = self.create_production(prod)?;
         self.productions.insert(new_prod);
-        return self;
+        return Ok(self);
     }
 
-    pub fn add_productions(&mut self, prod: &Vec<RawProduction>) -> &mut Self {
+    pub fn add_productions(&mut self, prod: &Vec<RawProduction>) -> Result<&mut Self, String> {
         for elem in prod.iter() {
-            self.add_production(elem);
+            self.add_production(elem)?;
         }
-        self
+        Ok(self)
     }
 
     pub fn get_production(&self) -> IndexSet<Production> {
@@ -216,56 +230,86 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
-    pub fn scan_tokens(&self, buffer: &String) -> Vec<(Term, TokenMetadata)> {
-        let mut tokens: Vec<(Term, TokenMetadata)> = vec![];
+pub fn scan_tokens(
+    &self,
+    buffer: &String,
+) -> Result<Vec<(Term, TokenMetadata)>, String> {
 
-        let mut col;
-        let lines = buffer.split('\n');
-        for (line, line_buffer) in lines.clone().enumerate() {
-            col = 0;
-            let mut line_tokens = line_buffer
-                .split(&[' ', '\t'])
-                .map(|s| {
-                    col += 1;
-                    if s == "" {
-                        return None;
-                    }
+    let mut tokens: Vec<(Term, TokenMetadata)> = vec![];
 
-                    let metadata = TokenMetadata {
-                        span: (line + 1, col),
-                        str: s.to_string(),
-                        line: String::from(line_buffer),
-                    };
-                    let Token::Term(term) = self.get_token(&s.to_string()) else {
-                        panic!("Only non-term tokens can be used as input.")
-                    };
-                    col += s.len();
+    let lines: Vec<&str> = buffer.split('\n').collect();
 
-                    Some((term, metadata))
-                })
-                .flatten()
-                .collect();
-            tokens.append(&mut line_tokens);
+    for (line_idx, line_buffer) in lines.iter().enumerate() {
+
+        let mut col = 1;
+
+        for raw_token in line_buffer.split(&[' ', '\t']) {
+
+            if raw_token.is_empty() {
+                col += 1;
+                continue;
+            }
+
+            let metadata = TokenMetadata {
+                span: (line_idx + 1, col),
+                str: raw_token.to_string(),
+                line: (*line_buffer).to_string(),
+            };
+
+            let token = self
+                .get_token(&raw_token.to_string())
+                .map_err(|_| {
+                    file_error(
+                        &"input.txt".to_string(),
+                        line_idx + 1,
+                        col,
+                        raw_token.len(),
+                        &line_buffer.to_string(),
+                        &format!("Unknown token '{}'", raw_token),
+                    )
+                })?;
+
+            let Token::Term(term) = token else {
+                return Err(file_error(
+                    &"input.txt".to_string(),
+                    line_idx + 1,
+                    col,
+                    raw_token.len(),
+                    &line_buffer.to_string(),
+                    &format!(
+                        "'{}' is not a terminal token",
+                        raw_token
+                    ),
+                ));
+            };
+
+            tokens.push((term, metadata));
+
+            col += raw_token.len() + 1;
         }
-
-        let last_line = lines.clone().last().unwrap();
-        tokens.push((
-            END,
-            TokenMetadata {
-                span: (lines.count(), last_line.len() + 1),
-                str: "$".to_string(),
-                line: String::from(last_line),
-            },
-        ));
-
-        tokens
     }
+
+    let last_line = lines.last().unwrap_or(&"");
+
+    tokens.push((
+        END,
+        TokenMetadata {
+            span: (lines.len(), last_line.len() + 1),
+            str: "$".to_string(),
+            line: (*last_line).to_string(),
+        },
+    ));
+
+    Ok(tokens)
+}
 }
 
 ////////////////////////////////////////////////////////////////
 /// DISPLAY
 ////////////////////////////////////////////////////////////////
 use std::fmt;
+
+use crate::error::file_error;
 
 impl fmt::Display for TokenManager {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
