@@ -1,4 +1,5 @@
 use regex::Regex;
+use once_cell::sync::Lazy;
 
 use crate::{error::file_error, ruleparser::rules_and_tokens::TokenMetadata};
 
@@ -13,6 +14,12 @@ pub struct RegexTokenizer {
     rule_set: Vec<RegexTokenRule>
 }
 
+
+static RAW_RULE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$")
+        .unwrap()
+});
+
 impl RegexTokenizer {
 
     pub fn new() -> Self
@@ -20,6 +27,10 @@ impl RegexTokenizer {
         Self::default()
     }
 
+    /**
+     * It takes as input the content of the file that link a token to a regex,
+     * and transform each line into a rule.
+     */
     pub fn parse_file_content(&mut self, content: &String) -> Result<(), String>
     {
         for (line_number, line) in content.split("\n").enumerate() {
@@ -37,18 +48,25 @@ impl RegexTokenizer {
         Ok(())
     }
 
+    /**
+     * add a rule already made. because a regex can fail to be created (see library documentation),
+     * we use the key word "cooked" for a regex that has been successfully created, and "raw" for a
+     * potential regex, that might fail when created
+     */
     pub fn add_cooked_rule(&mut self, rule: RegexTokenRule)
     {
         self.rule_set.push(rule);
     }
 
-    pub fn add_raw_rule(&mut self, rule: String) -> Result<(), String> {
-        // expected :
-        // TOKEN_NAME:regex
-
-        let re = Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$").unwrap();
-
-        let caps = re.captures(&rule)
+    /**
+     * Add a rule based on a line, this function can fail if the line or regex is not well made
+     * expected format :
+     * TOKEN_NAME:regex
+     */
+    pub fn add_raw_rule(&mut self, rule: String) -> Result<(), String>
+    {
+        // We try to capture the different values within the line. if it matches the regex, we continue, or return an error
+        let caps = RAW_RULE_REGEX.captures(&rule)
             .ok_or_else(|| {
                 format!("Invalid regex rule '{}'\nExpected format: TOKEN_NAME:regex", rule)
             })?;
@@ -56,6 +74,7 @@ impl RegexTokenizer {
         let result = caps.get(1).unwrap().as_str().to_string();
         let regex_str = caps.get(2).unwrap().as_str().to_string();
 
+        // We try to create a nuew regex based on the regex given in the line. if it does not success, we return an error
         let regex = Regex::new(&regex_str).map_err(|e| {
                 format!("Invalid regex '{}' for token '{}'\n{}", regex_str, result, e )
             })?;
@@ -68,10 +87,19 @@ impl RegexTokenizer {
         Ok(())
     }
 
+    /**
+     * We check if the given RegexTokenRule is correct.
+     * see the structure RegexTokenRule
+     * Its inputs are the remainings to parse, the line number and the column number.
+     * If it does not mathc the regular expression, it just return None, for nothing found
+     * If it finds something, it return :
+     * - Name of the token
+     * - the metadata of the token
+     * - the size of the what it analized, so next call can skip what has already been identified
+     */
     fn check_rule(&self, rule: &RegexTokenRule, remaining: &str, line: usize, col: &mut usize) -> Option<(String, TokenMetadata, usize)>
     {
         if let Some(m) = rule.regex.find(remaining) {
-            // doit matcher au début
             if m.start() != 0 {
                 return None;
             }
@@ -94,6 +122,9 @@ impl RegexTokenizer {
         return None;
     }
 
+    /**
+     * it transforms the content of a line 
+     */
     pub fn tokenize(
         &self,
         input: &String,
