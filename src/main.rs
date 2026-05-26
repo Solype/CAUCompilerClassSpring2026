@@ -16,6 +16,7 @@ pub fn display_node(
     node: &TreeNode<TokenWithMetadata>,
     prefix: String,
     is_last: bool,
+    use_regex: bool,
     token_manager: &TokenManager,
 ) {
     let token_name = token_manager.get_token_name(node.value.token.id());
@@ -26,7 +27,7 @@ pub fn display_node(
         "├──"
     };
 
-    if let Token::Term(_) = node.value.token && node.value.metadata.str != token_name {
+    if let Token::Term(_) = node.value.token && use_regex {
         println!(
             "{}{} {} token({})",
             prefix,
@@ -56,6 +57,7 @@ pub fn display_node(
             child,
             child_prefix.clone(),
             i == len - 1,
+            use_regex,
             token_manager,
         );
     }
@@ -92,7 +94,7 @@ fn run() -> Result<(), String> {
     let mut parser = slr::parser::Parser::new(&rules.get_production());
     let tree = parser.parse(tokens)?;
 
-    display_node(&tree.root, String::new(), true, &rules);
+    display_node(&tree.root, String::new(), true, input.use_regex, &rules);
 
     Ok(())
 }
