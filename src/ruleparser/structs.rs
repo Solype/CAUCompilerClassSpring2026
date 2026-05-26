@@ -1,122 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexSet;
-
-////////////////////////////////////////////////////////////////
-/// TOKENS
-////////////////////////////////////////////////////////////////
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub struct Sym(usize);
-
-impl Sym {
-    fn to_term(&self) -> Term {
-        Term(self.clone())
-    }
-
-    fn to_non_term(&self) -> NonTerm {
-        NonTerm(self.clone())
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct NonTerm(Sym);
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
-pub struct Term(Sym);
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub enum Token {
-    Term(Term),
-    NonTerm(NonTerm),
-}
-
-impl Token {
-    pub fn id(&self) -> usize {
-        match self {
-            Token::Term(t) => t.0.0,
-            Token::NonTerm(t) => t.0.0,
-        }
-    }
-
-    pub fn sym(&self) -> Sym {
-        match self {
-            Token::Term(t) => t.0.clone(),
-            Token::NonTerm(t) => t.0.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct TokenMetadata {
-    pub span: (usize, usize),
-    pub str: String,
-    pub line: String,
-}
-impl Default for TokenMetadata {
-    fn default() -> Self {
-        Self {
-            span: (1, 1),
-            str: "".to_string(),
-            line: "".to_string(),
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////
-/// PRODUCTION
-////////////////////////////////////////////////////////////////
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-struct SimpleProduction {
-    nt: Sym,
-    inputs: Vec<Sym>,
-}
-
-impl SimpleProduction {
-    fn to_production(&self, nt_set: &HashSet<usize>) -> Production {
-        Production {
-            nt: self.nt.to_non_term(),
-            inputs: self
-                .inputs
-                .iter()
-                .map(|x| {
-                    if nt_set.get(&x.0).is_none() {
-                        Token::Term(x.to_term())
-                    } else {
-                        Token::NonTerm(x.to_non_term())
-                    }
-                })
-                .collect(),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub struct Production {
-    pub nt: NonTerm,
-    pub inputs: Vec<Token>,
-}
-
-impl Production {
-    pub fn new(nt: NonTerm, inputs: Vec<Token>) -> Self {
-        Self { nt, inputs }
-    }
-}
-
-pub struct RawProduction {
-    nt: String,
-    inputs: Vec<String>,
-}
-
-impl RawProduction {
-    pub fn new<T: Into<String>>(nt: impl Into<String>, inputs: Vec<T>) -> Self {
-        Self {
-            nt: nt.into(),
-            inputs: inputs.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
+use super::rules_and_tokens::*;
 
 ////////////////////////////////////////////////////////////////
 /// HANDLER
@@ -141,10 +26,10 @@ impl TokenManager {
             productions: IndexSet::<SimpleProduction>::new(),
         };
 
-        new_var.add_token(&"START".to_string()); // 0
-        new_var.add_token(&"EPSILON".to_string()); // 1
-        new_var.add_token(&"END".to_string()); // 2
-        new_var.add_token(&"UNDEFINED".to_string()); // 3
+        new_var.add_token(&"START".to_string());        // 0
+        new_var.add_token(&"EPSILON".to_string());      // 1
+        new_var.add_token(&"END".to_string());          // 2
+        new_var.add_token(&"UNDEFINED".to_string());    // 3
 
         new_var
     }
@@ -230,78 +115,97 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
-pub fn scan_tokens(
-    &self,
-    buffer: &String,
-) -> Result<Vec<(Term, TokenMetadata)>, String> {
+    pub fn scan_tokens(
+        &self,
+        buffer: &String,
+    ) -> Result<Vec<(String, TokenMetadata)>, String> {
 
-    let mut tokens: Vec<(Term, TokenMetadata)> = vec![];
+        let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
-    let lines: Vec<&str> = buffer.split('\n').collect();
+        let lines: Vec<&str> = buffer.split('\n').collect();
 
-    for (line_idx, line_buffer) in lines.iter().enumerate() {
+        for (line_idx, line_buffer) in lines.iter().enumerate() {
 
-        let mut col = 1;
+            let mut col = 1;
+            for raw_token in line_buffer.split(&[' ', '\t']) {
+                if raw_token.is_empty() {
+                    col += 1;
+                    continue;
+                }
 
-        for raw_token in line_buffer.split(&[' ', '\t']) {
+                let metadata = TokenMetadata {
+                    span: (line_idx + 1, col),
+                    str: raw_token.to_string(),
+                    line: (*line_buffer).to_string(),
+                };
 
-            if raw_token.is_empty() {
-                col += 1;
-                continue;
+                tokens.push((raw_token.to_string(), metadata));
+
+                col += raw_token.len() + 1;
             }
-
-            let metadata = TokenMetadata {
-                span: (line_idx + 1, col),
-                str: raw_token.to_string(),
-                line: (*line_buffer).to_string(),
-            };
-
-            let token = self
-                .get_token(&raw_token.to_string())
-                .map_err(|_| {
-                    file_error(
-                        &"input.txt".to_string(),
-                        line_idx + 1,
-                        col,
-                        raw_token.len(),
-                        &line_buffer.to_string(),
-                        &format!("Unknown token '{}'", raw_token),
-                    )
-                })?;
-
-            let Token::Term(term) = token else {
-                return Err(file_error(
-                    &"input.txt".to_string(),
-                    line_idx + 1,
-                    col,
-                    raw_token.len(),
-                    &line_buffer.to_string(),
-                    &format!(
-                        "'{}' is not a terminal token",
-                        raw_token
-                    ),
-                ));
-            };
-
-            tokens.push((term, metadata));
-
-            col += raw_token.len() + 1;
         }
+
+        Ok(tokens)
     }
 
-    let last_line = lines.last().unwrap_or(&"");
+    fn wrap_single_token(&self, unwrapped_token: &(String, TokenMetadata)) -> Result<(Term, TokenMetadata), String>
+    {
+        let token = self.get_token(&unwrapped_token.0)
+            .map_err(|_| {
+                file_error(
+                    &"Tokens".to_string(),
+                    unwrapped_token.1.span.0,
+                    unwrapped_token.1.span.1,
+                    unwrapped_token.1.str.len(),
+                    &unwrapped_token.1.str,
+                    &format!("Unknown token '{}', it can be either the regex or your typing", unwrapped_token.0),
+                )
+            })?;
 
-    tokens.push((
-        END,
-        TokenMetadata {
-            span: (lines.len(), last_line.len() + 1),
-            str: "$".to_string(),
-            line: (*last_line).to_string(),
-        },
-    ));
+        let Token::Term(term) = token else {
+            return Err(file_error(
+                &"Tokens".to_string(),
+                unwrapped_token.1.span.0,
+                unwrapped_token.1.span.1,
+                unwrapped_token.1.str.len(),
+                &unwrapped_token.1.str,
+                &format!("'{}' is not a terminal token", unwrapped_token.0
+                ),
+            ));
+        };
+        return Ok((term, unwrapped_token.1.clone()));
+    }
 
-    Ok(tokens)
-}
+    pub fn wrap_cooked_token(
+        &self,
+        cooked_tokens: &Vec<(String, TokenMetadata)>
+    ) -> Result<Vec<(Term, TokenMetadata)>, String>
+    {
+        let mut wrapped_token = cooked_tokens.iter()
+            .map(|x| self.wrap_single_token(x))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let end_metadata = if let Some((_, last_meta)) = wrapped_token.last() {
+            TokenMetadata {
+                span: (
+                    last_meta.span.0,
+                    last_meta.span.1 + last_meta.str.len(),
+                ),
+                str: "$".to_string(),
+                line: last_meta.line.clone(),
+            }
+        } else {
+            TokenMetadata {
+                span: (1, 1),
+                str: "$".to_string(),
+                line: "".to_string(),
+            }
+        };
+
+        wrapped_token.push((END, end_metadata));
+
+        Ok(wrapped_token)
+    }
 }
 
 ////////////////////////////////////////////////////////////////
