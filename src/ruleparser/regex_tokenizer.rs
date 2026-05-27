@@ -74,11 +74,12 @@ impl RegexTokenizer {
         let result = caps.get(1).unwrap().as_str().to_string();
         let regex_str = caps.get(2).unwrap().as_str().to_string();
 
-        // We try to create a nuew regex based on the regex given in the line. if it does not success, we return an error
+        // We try to create a new regex based on the regex given in the line. if it does not success, we return an error
         let regex = Regex::new(&regex_str).map_err(|e| {
                 format!("Invalid regex '{}' for token '{}'\n{}", regex_str, result, e )
             })?;
 
+        // we push the rule inside of the rule set.
         self.rule_set.push(RegexTokenRule {
             result,
             regex,
@@ -99,31 +100,34 @@ impl RegexTokenizer {
      */
     fn check_rule(&self, rule: &RegexTokenRule, remaining: &str, line: usize, col: &mut usize) -> Option<(String, TokenMetadata, usize)>
     {
+        // check if the regex has found someting whithin the line.
         if let Some(m) = rule.regex.find(remaining) {
+            // if what has been found by the regex is not at the very beginning, we consider it did not find anything
             if m.start() != 0 {
                 return None;
             }
 
+            // we extract what has been identified by the regex into a variable
             let text = &remaining[..m.end()];
+            let text_str = text.to_string();
+            let col_nb = *col;
 
+            *col += text_str.len();
+
+            // we can create a metadata object thanks to all those information.
             let metadata = TokenMetadata {
-                span: (line, *col),
-                str: text.to_string(),
+                span: (line, col_nb),
+                str: text_str,
                 line: remaining.lines().next().unwrap_or("").to_string(),
             };
 
-            for _ in text.chars() {
-                *col += 1;
-            }
-
             return Some((rule.result.clone(), metadata, text.len()));
-
         }
         return None;
     }
 
     /**
-     * it transforms the content of a line 
+     * it transforms the content of a file into multiple futur token as string with their metadata (line, line nb, col nb)
      */
     pub fn tokenize(
         &self,
@@ -138,6 +142,29 @@ impl RegexTokenizer {
         Ok(tokens)
     }
 
+    /**
+     * Tokenizes a single source line using the current regex rule set.
+     *
+     * The lexer scans the line from left to right and:
+     *   - skips whitespace
+     *   - tries every token rule in declaration order
+     *   - consumes the first matching rule
+     *   - generates token metadata (line number, column number, full line)
+     *
+     * If no rule matches the current character,
+     * a formatted lexer error is returned.
+     *
+     * Parameters:
+     *   - `line`        : source line to tokenize
+     *   - `line_number` : 1-based line index in the source file
+     *
+     * Returns:
+     *   - `Ok(Vec<(String, TokenMetadata)>)`
+     *       list of recognized tokens
+     *
+     *   - `Err(String)`
+     *       formatted lexer diagnostic
+     */
     fn tokenize_line(&self, line: &str, line_number: usize) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens = vec![];
 
@@ -159,6 +186,7 @@ impl RegexTokenizer {
 
             let mut matched = false;
 
+            // We check among all the rules if one match, if that's the cas, we put mathed to true and add the token into the list of tokens
             for rule in &self.rule_set {
                 if let Some((token, mut metadata, text_size)) =
                     self.check_rule(rule, remaining, line_number, &mut col) {
@@ -171,6 +199,7 @@ impl RegexTokenizer {
                 }
             }
 
+            // if nothing matched, we throw an error
             if !matched {
 
                 let current = remaining.chars().next().unwrap();
