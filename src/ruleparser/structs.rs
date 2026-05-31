@@ -8,8 +8,8 @@ use indexmap::IndexSet;
 ////////////////////////////////////////////////////////////////
 
 pub struct TokenManager {
-    token: HashMap<String, usize>,
-    non_terminal_token: HashSet<usize>,
+    pub token: HashMap<String, usize>,
+    pub non_terminal_token: HashSet<usize>,
     productions: IndexSet<SimpleProduction>,
 }
 

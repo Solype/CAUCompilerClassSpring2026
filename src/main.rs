@@ -4,15 +4,21 @@ mod input;
 mod ruleparser;
 mod slr;
 
+use std::collections::HashSet;
+
 use crate::{
     input::{Parameters, get_rule_and_input},
     ruleparser::{
         reader::parse_rules,
         regex_tokenizer::RegexTokenizer,
-        rules_and_tokens::{Token, TokenMetadata},
-        structs::TokenManager,
+        rules_and_tokens::{NonTerm, Sym, Term, Token, TokenMetadata},
+        structs::{END, TokenManager, UNDEFINED},
     },
-    slr::{parser::TokenWithMetadata, tree::TreeNode},
+    slr::{
+        parser::TokenWithMetadata,
+        table::{Action, SLRTable},
+        tree::TreeNode,
+    },
 };
 
 use owo_colors::OwoColorize;
@@ -66,6 +72,103 @@ pub fn display_node(
     }
 }
 
+/// Can be used to display SLR Table in markdown format
+#[allow(dead_code)]
+fn display_slr_table(slr_table: &SLRTable, token_manager: &TokenManager) {
+    let (nonterm_set, term_set): (HashSet<(&String, &usize)>, HashSet<(&String, &usize)>) =
+        token_manager
+            .token
+            .iter()
+            .partition(|(_, id)| token_manager.non_terminal_token.contains(id));
+
+    let mut nonterms: Vec<_> = nonterm_set.into_iter().collect();
+    let mut terms: Vec<_> = term_set.into_iter().collect();
+
+    nonterms.sort_by_key(|(_, id)| *id);
+    terms.sort_by_key(|(_, id)| *id);
+
+    let mut terms: Vec<_> = terms
+        .into_iter()
+        .filter(|(_, id)| **id > UNDEFINED.0.0)
+        .collect();
+
+    // Push END ($) to the end
+    let end_str = "$".to_string();
+    terms.push((&end_str, &END.0.0));
+
+    print!("| State |I| ACTION |");
+
+    for _ in 1..terms.len() {
+        print!(" |");
+    }
+
+    print!("I | GOTO |");
+
+    for _ in 2..nonterms.len() {
+        print!(" |");
+    }
+
+    println!();
+
+    // Separator row
+    print!("|---|---|");
+    for _ in &terms {
+        print!("---|");
+    }
+    for _ in &nonterms {
+        print!("---|");
+    }
+    println!();
+
+    // Token row
+    print!("| | I |");
+    for (name, _) in &terms {
+        print!(" {} |", name);
+    }
+    print!(" I |");
+
+    for (name, _) in &nonterms {
+        print!(" {} |", name);
+    }
+
+    println!();
+
+    // Rows
+    for state_id in 0..slr_table.lr_items.states.len() {
+        print!("| {} | I |", state_id);
+
+        // ACTION columns
+        for (_, id) in &terms {
+            let term = Term(Sym(**id));
+
+            let cell = match slr_table.actions.get(&(state_id, term)) {
+                Some(Action::Shift(next)) => format!("s{}", next),
+                Some(Action::Reduce(rule)) => format!("r{}", rule),
+                Some(Action::Accept) => "acc".to_string(),
+                None => String::new(),
+            };
+
+            print!(" {} |", cell);
+        }
+        print!(" I |");
+
+        // GOTO columns
+        for (_, id) in &nonterms {
+            let nt = NonTerm(Sym(**id));
+
+            let cell = slr_table
+                .gotos
+                .get(&(state_id, nt))
+                .map(|goto| goto.to_string())
+                .unwrap_or_default();
+
+            print!(" {} |", cell);
+        }
+
+        println!();
+    }
+}
+
 fn cook_tokens(
     input: &Parameters,
     rules: &TokenManager,
@@ -99,6 +202,7 @@ fn run() -> Result<(), String> {
     let tree = parser.parse(tokens)?;
 
     display_node(&tree.root, String::new(), true, input.use_regex, &rules);
+    // display_slr_table(&parser.slr_table, &rules);
 
     Ok(())
 }
