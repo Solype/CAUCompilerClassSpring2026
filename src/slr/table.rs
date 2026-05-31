@@ -4,12 +4,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use indexmap::IndexSet;
 
 use crate::ruleparser::{
-    structs::{
-        END, EPSILON, START, UNDEFINED,
-    },
-    rules_and_tokens::{
-        NonTerm, Production, Term, Token,
-    }
+    rules_and_tokens::{NonTerm, Production, Term, Token},
+    structs::{END, EPSILON, START, UNDEFINED},
 };
 
 pub type StateId = usize;
@@ -185,9 +181,9 @@ impl LRItems {
 
     fn closure(mut state: State, productions: &Productions) -> State {
         let mut changed = true;
-        let mut to_add = vec![];
         while changed {
             changed = false;
+            let mut to_add = vec![];
             for item in &state {
                 if let Some(Token::NonTerm(nt)) = item.production.inputs.get(item.dot) {
                     to_add.extend(Self::closure_items(nt, 0, productions));
@@ -262,13 +258,25 @@ impl LRItems {
         lr_items
     }
 }
-pub struct LRTable {
+pub struct SLRTable {
     pub lr_items: LRItems,
     pub actions: HashMap<(StateId, Term), Action>,
     pub gotos: HashMap<(StateId, NonTerm), Goto>,
 }
 
-impl LRTable {
+impl SLRTable {
+    fn insert_and_check_action_conflict(
+        actions: &mut HashMap<(StateId, Term), Action>,
+        key: &(StateId, Term),
+        action: &Action,
+    ) {
+        if let Some(existing) = actions.insert(key.clone(), action.clone()) {
+            panic!(
+                "SLR conflict in state {:?}: {:?} vs {:?}",
+                key, existing, action
+            );
+        }
+    }
     pub fn new(productions: &Productions) -> Self {
         let first_follow = FirstFollowSets::new(productions);
 
@@ -277,9 +285,11 @@ impl LRTable {
         let mut gotos = HashMap::new();
         for transition in lr_items.transitions.iter() {
             match transition.symbol.clone() {
-                Token::Term(t) => {
-                    actions.insert((transition.from, t), Action::Shift(transition.result));
-                }
+                Token::Term(t) => Self::insert_and_check_action_conflict(
+                    &mut actions,
+                    &(transition.from, t),
+                    &Action::Shift(transition.result),
+                ),
                 Token::NonTerm(nt) => {
                     gotos.insert((transition.from, nt), transition.result);
                 }
@@ -289,7 +299,11 @@ impl LRTable {
             state.iter().for_each(|item| {
                 if item.dot == item.production.inputs.len() {
                     if item.production.nt == START {
-                        actions.insert((id, END), Action::Accept);
+                        Self::insert_and_check_action_conflict(
+                            &mut actions,
+                            &(id, END),
+                            &Action::Accept,
+                        );
                     } else {
                         first_follow
                             .follow
@@ -297,12 +311,13 @@ impl LRTable {
                             .unwrap()
                             .iter()
                             .for_each(|t| {
-                                actions.insert(
-                                    (id, t.clone()),
-                                    Action::Reduce(
+                                Self::insert_and_check_action_conflict(
+                                    &mut actions,
+                                    &(id, t.clone()),
+                                    &Action::Reduce(
                                         productions.get_index_of(&item.production).unwrap(),
                                     ),
-                                );
+                                )
                             });
                     }
                 }
@@ -317,7 +332,7 @@ impl LRTable {
     }
 }
 
-impl fmt::Display for LRTable {
+impl fmt::Display for SLRTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (state_id, _) in self.lr_items.states.iter().enumerate() {
             write!(f, "s{}\t|", state_id)?;

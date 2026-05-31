@@ -2,13 +2,11 @@ use core::fmt;
 
 use crate::{
     error::token_error,
-    ruleparser::rules_and_tokens::{
-        Term, Token, TokenMetadata
-    },
+    ruleparser::rules_and_tokens::{Term, Token, TokenMetadata},
     slr::{
-        table::{Action, Goto, LRTable, Productions, StateId},
+        table::{Action, Goto, Productions, SLRTable, StateId},
         tree::{Tree, TreeNode},
-    }
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -46,7 +44,7 @@ impl fmt::Debug for StackValue {
 }
 
 pub struct Parser {
-    lr_table: LRTable,
+    lr_table: SLRTable,
     productions: Productions,
     stack: Vec<StackValue>,
 }
@@ -54,7 +52,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(productions: &Productions) -> Self {
         Self {
-            lr_table: LRTable::new(productions),
+            lr_table: SLRTable::new(productions),
             productions: productions.clone(),
             stack: vec![],
         }
@@ -144,7 +142,10 @@ impl Parser {
                         .get(&(state_id, term.clone()))
                         .cloned()
                     else {
-                        return Err(token_error(TokenWithMetadata {token: Token::Term(term.clone()), metadata: m, }));
+                        return Err(token_error(TokenWithMetadata {
+                            token: Token::Term(term.clone()),
+                            metadata: m,
+                        }));
                     };
 
                     self.action(&action, &mut inputs);
@@ -164,7 +165,10 @@ impl Parser {
                     let Some(goto) = self.lr_table.gotos.get(&(*state, nt.clone())).cloned() else {
                         let (term, m) = inputs.last().unwrap().clone();
 
-                        return Err(token_error(TokenWithMetadata { token: Token::Term(term.clone()), metadata: m,}));
+                        return Err(token_error(TokenWithMetadata {
+                            token: Token::Term(term.clone()),
+                            metadata: m,
+                        }));
                     };
 
                     self.goto(goto);
