@@ -29,8 +29,8 @@ type ProductionId = usize;
 
 pub type Productions = IndexSet<Production>;
 
-type FirstSet = HashSet<Term>;
-type FollowSet = HashSet<Term>;
+type FirstSet = BTreeSet<Term>;
+type FollowSet = BTreeSet<Term>;
 
 type FirstTable = BTreeMap<NonTerm, FirstSet>;
 type FollowTable = BTreeMap<NonTerm, FollowSet>;
@@ -234,7 +234,7 @@ impl LRItems {
         while !new_states.is_empty() {
             let from_state = new_states.pop().unwrap();
 
-            let mut next_symbols = HashSet::new();
+            let mut next_symbols = BTreeSet::new();
             next_symbols.extend(
                 from_state
                     .iter()
