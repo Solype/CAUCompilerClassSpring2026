@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use indexmap::IndexSet;
 use super::rules_and_tokens::*;
+use indexmap::IndexSet;
 
 ////////////////////////////////////////////////////////////////
 /// HANDLER
@@ -26,10 +26,10 @@ impl TokenManager {
             productions: IndexSet::<SimpleProduction>::new(),
         };
 
-        new_var.add_token(&"START".to_string());        // 0
-        new_var.add_token(&"EPSILON".to_string());      // 1
-        new_var.add_token(&"END".to_string());          // 2
-        new_var.add_token(&"UNDEFINED".to_string());    // 3
+        new_var.add_token(&"START".to_string()); // 0
+        new_var.add_token(&"EPSILON".to_string()); // 1
+        new_var.add_token(&"END".to_string()); // 2
+        new_var.add_token(&"UNDEFINED".to_string()); // 3
 
         new_var
     }
@@ -63,30 +63,31 @@ impl TokenManager {
         return self;
     }
 
-    fn create_production(
-        &self,
-        prod: &RawProduction,
-    ) -> Result<SimpleProduction, String> {
-
-        let nt = self.get_token(&prod.nt).map_err(|_| {
-                format!("Unknown token '{}' in production left side", prod.nt)
-            })?.sym();
+    fn create_production(&self, prod: &RawProduction) -> Result<SimpleProduction, String> {
+        let nt = self
+            .get_token(&prod.nt)
+            .map_err(|_| format!("Unknown token '{}' in production left side", prod.nt))?
+            .sym();
 
         let mut inputs = Vec::new();
 
         for token in &prod.inputs {
-            let sym = self.get_token(token)
+            let sym = self
+                .get_token(token)
                 .map_err(|_| {
-                    format!( "Unknown token '{}' in production '{} -> {}'", token, prod.nt, prod.inputs.join(" ") )
-                })?.sym();
+                    format!(
+                        "Unknown token '{}' in production '{} -> {}'",
+                        token,
+                        prod.nt,
+                        prod.inputs.join(" ")
+                    )
+                })?
+                .sym();
 
             inputs.push(sym);
         }
 
-        Ok(SimpleProduction {
-            nt,
-            inputs,
-        })
+        Ok(SimpleProduction { nt, inputs })
     }
 
     pub fn add_production(&mut self, prod: &RawProduction) -> Result<&mut Self, String> {
@@ -115,17 +116,12 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
-    pub fn scan_tokens(
-        &self,
-        buffer: &String,
-    ) -> Result<Vec<(String, TokenMetadata)>, String> {
-
+    pub fn scan_tokens(&self, buffer: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
         let lines: Vec<&str> = buffer.split('\n').collect();
 
         for (line_idx, line_buffer) in lines.iter().enumerate() {
-
             let mut col = 1;
             for raw_token in line_buffer.split(&[' ', '\t']) {
                 if raw_token.is_empty() {
@@ -148,19 +144,23 @@ impl TokenManager {
         Ok(tokens)
     }
 
-    fn wrap_single_token(&self, unwrapped_token: &(String, TokenMetadata)) -> Result<(Term, TokenMetadata), String>
-    {
-        let token = self.get_token(&unwrapped_token.0)
-            .map_err(|_| {
-                file_error(
-                    &"Tokens".to_string(),
-                    unwrapped_token.1.span.0,
-                    unwrapped_token.1.span.1,
-                    unwrapped_token.1.str.len(),
-                    &unwrapped_token.1.str,
-                    &format!("Unknown token '{}', it can be either the regex or your typing", unwrapped_token.0),
-                )
-            })?;
+    fn wrap_single_token(
+        &self,
+        unwrapped_token: &(String, TokenMetadata),
+    ) -> Result<(Term, TokenMetadata), String> {
+        let token = self.get_token(&unwrapped_token.0).map_err(|_| {
+            file_error(
+                &"Tokens".to_string(),
+                unwrapped_token.1.span.0,
+                unwrapped_token.1.span.1,
+                unwrapped_token.1.str.len(),
+                &unwrapped_token.1.str,
+                &format!(
+                    "Unknown token '{}', it can be either the regex or your typing",
+                    unwrapped_token.0
+                ),
+            )
+        })?;
 
         let Token::Term(term) = token else {
             return Err(file_error(
@@ -169,8 +169,7 @@ impl TokenManager {
                 unwrapped_token.1.span.1,
                 unwrapped_token.1.str.len(),
                 &unwrapped_token.1.str,
-                &format!("'{}' is not a terminal token", unwrapped_token.0
-                ),
+                &format!("'{}' is not a terminal token", unwrapped_token.0),
             ));
         };
         return Ok((term, unwrapped_token.1.clone()));
@@ -178,19 +177,16 @@ impl TokenManager {
 
     pub fn wrap_cooked_token(
         &self,
-        cooked_tokens: &Vec<(String, TokenMetadata)>
-    ) -> Result<Vec<(Term, TokenMetadata)>, String>
-    {
-        let mut wrapped_token = cooked_tokens.iter()
+        cooked_tokens: &Vec<(String, TokenMetadata)>,
+    ) -> Result<Vec<(Term, TokenMetadata)>, String> {
+        let mut wrapped_token = cooked_tokens
+            .iter()
             .map(|x| self.wrap_single_token(x))
             .collect::<Result<Vec<_>, _>>()?;
 
         let end_metadata = if let Some((_, last_meta)) = wrapped_token.last() {
             TokenMetadata {
-                span: (
-                    last_meta.span.0,
-                    last_meta.span.1 + last_meta.str.len(),
-                ),
+                span: (last_meta.span.0, last_meta.span.1 + last_meta.str.len()),
                 str: "$".to_string(),
                 line: last_meta.line.clone(),
             }

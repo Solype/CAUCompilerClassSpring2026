@@ -1,12 +1,17 @@
+mod error;
+mod helper;
 mod input;
 mod ruleparser;
 mod slr;
-mod error;
-mod helper;
 
 use crate::{
     input::{Parameters, get_rule_and_input},
-    ruleparser::{reader::parse_rules, regex_tokenizer::RegexTokenizer, rules_and_tokens::{Token, TokenMetadata}, structs::TokenManager},
+    ruleparser::{
+        reader::parse_rules,
+        regex_tokenizer::RegexTokenizer,
+        rules_and_tokens::{Token, TokenMetadata},
+        structs::TokenManager,
+    },
     slr::{parser::TokenWithMetadata, tree::TreeNode},
 };
 
@@ -21,13 +26,11 @@ pub fn display_node(
 ) {
     let token_name = token_manager.get_token_name(node.value.token.id());
 
-    let connector = if is_last {
-        "└──"
-    } else {
-        "├──"
-    };
+    let connector = if is_last { "└──" } else { "├──" };
 
-    if let Token::Term(_) = node.value.token && use_regex {
+    if let Token::Term(_) = node.value.token
+        && use_regex
+    {
         println!(
             "{}{} {} token({})",
             prefix,
@@ -63,8 +66,10 @@ pub fn display_node(
     }
 }
 
-fn cook_tokens(input: &Parameters, rules: &TokenManager) -> Result<Vec<(String, TokenMetadata)>, String>
-{
+fn cook_tokens(
+    input: &Parameters,
+    rules: &TokenManager,
+) -> Result<Vec<(String, TokenMetadata)>, String> {
     let mut reg = RegexTokenizer::new();
 
     let cooked_tokens = if input.use_regex {
@@ -80,7 +85,6 @@ fn cook_tokens(input: &Parameters, rules: &TokenManager) -> Result<Vec<(String, 
 
     return Ok(cooked_tokens);
 }
-
 
 fn run() -> Result<(), String> {
     let input = get_rule_and_input()?;
@@ -101,7 +105,6 @@ fn run() -> Result<(), String> {
 
 #[allow(unreachable_code)]
 fn main() -> Result<(), String> {
-
     if let Err(e) = run() {
         eprintln!("{}", e);
         return Err("Due to previous error, the program will stop".to_string());
