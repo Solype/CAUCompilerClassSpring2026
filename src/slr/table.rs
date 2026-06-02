@@ -8,38 +8,40 @@ use crate::ruleparser::{
 };
 
 pub type StateId = usize;
-
-/// A parser action in the ACTION table.
-///
-/// Shift(s):
-///     consume one input symbol and transition to state `s`.
-///
-/// Reduce(p):
-///     reduce using production `p`.
-///
-/// Accept:
-///     successful parse.
-#[derive(Debug, Clone)]
+/**
+ * A parser action in the ACTION table.
+ *
+ * Shift(s):
+ *     consume one input symbol and transition to state `s`.
+ *
+ * Reduce(p):
+ *     reduce using production `p`.
+ *
+ * Accept:
+ *     successful parse.
+ */
+ #[derive(Debug, Clone)]
 pub enum Action {
     Shift(StateId),
     Reduce(ProductionId),
     Accept,
 }
 pub type Goto = StateId;
-
-/// DFA transition between two LR(0) states.
-///
-/// A transition is produced by applying GOTO(state, symbol).
-///
-/// Example:
-///
-///     S0 --id--> S5
-///
-/// where:
-///     from   = S0
-///     symbol = id
-///     result = S5
-#[derive(Debug)]
+/**
+ * DFA transition between two LR(0) states.
+ *
+ * A transition is produced by applying GOTO(state, symbol).
+ *
+ * Example:
+ *
+ *     S0 --id--> S5
+ *
+ * where:
+ *     from   = S0
+ *     symbol = id
+ *     result = S5
+ */
+ #[derive(Debug)]
 pub struct Transition {
     from: StateId,
     symbol: Token,
@@ -53,26 +55,32 @@ pub type Productions = IndexSet<Production>;
 type FirstSet = BTreeSet<Term>;
 type FollowSet = BTreeSet<Term>;
 
-/// FIRST(X) contains every terminal that may appear
-/// as the first symbol of a string derived from X.
-///
-/// Example:
-///
-///     Expr -> Term '+' Expr
-///
-/// then:
-///
-///     FIRST(Expr) contains FIRST(Term)
+/**
+ * FIRST(X) contains every terminal that may appear
+ * as the first symbol of a string derived from X.
+ *
+ * Example:
+ *
+ *     Expr -> Term '+' Expr
+ *
+ * then:
+ *
+ *     FIRST(Expr) contains FIRST(Term)
+ */
 type FirstTable = BTreeMap<NonTerm, FirstSet>;
-/// FOLLOW(X) contains every terminal that may legally
-/// appear immediately after X in a sentential form.
-///
-/// The start symbol additionally contains END ($).
+/**
+ * FOLLOW(X) contains every terminal that may legally
+ * appear immediately after X in a sentential form.
+ *
+ * The start symbol additionally contains END ($).
+ */
 type FollowTable = BTreeMap<NonTerm, FollowSet>;
 
-/// Computes FIRST and FOLLOW sets for a grammar.
-///
-/// Used when constructing SLR parsing tables.
+/**
+ * Computes FIRST and FOLLOW sets for a grammar.
+ *
+ * Used when constructing SLR parsing tables.
+ */
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct FirstFollowSets {
@@ -89,21 +97,23 @@ impl FirstFollowSets {
         }
     }
 
-    /// Computes FIRST sets using fixed-point iteration.
-    ///
-    /// The algorithm repeatedly propagates terminals until
-    /// no FIRST set changes.
-    ///
-    /// Iteration continues because productions may depend on
-    /// FIRST sets that have not yet been fully computed.
-    ///
-    /// Example:
-    ///
-    ///     A -> B
-    ///     B -> c
-    ///
-    /// FIRST(B) = { c }
-    /// FIRST(A) = { c }
+    /**
+     * Computes FIRST sets using fixed-point iteration.
+     *
+     * The algorithm repeatedly propagates terminals until
+     * no FIRST set changes.
+     *
+     * Iteration continues because productions may depend on
+     * FIRST sets that have not yet been fully computed.
+     *
+     * Example:
+     *
+     *     A -> B
+     *     B -> c
+     *
+     * FIRST(B) = { c }
+     * FIRST(A) = { c }
+     */
     fn build_first(productions: &Productions) -> FirstTable {
         let mut table = FirstTable::new();
         for Production { nt, .. } in productions {
@@ -136,34 +146,36 @@ impl FirstFollowSets {
         table
     }
 
-    /// Computes FOLLOW sets using iterative propagation.
-    ///
-    /// This implementation uses the following rules:
-    ///
-    /// 1. If a nonterminal B is immediately followed by a
-    ///    terminal a:
-    ///
-    ///        A -> α B a
-    ///
-    ///    then a is added to FOLLOW(B).
-    ///
-    /// 2. If a nonterminal B is immediately followed by a
-    ///    nonterminal C:
-    ///
-    ///        A -> α B C
-    ///
-    ///    then FIRST(C) is added to FOLLOW(B).
-    ///
-    ///    If FIRST(C) contains ε, FOLLOW(C) is also added
-    ///    to FOLLOW(B).
-    ///
-    /// 3. If B appears at the end of a production:
-    ///
-    ///        A -> α B
-    ///
-    ///    then FOLLOW(A) is added to FOLLOW(B).
-    ///
-    /// The process repeats until no FOLLOW set changes.
+    /**
+     * Computes FOLLOW sets using iterative propagation.
+     *
+     * This implementation uses the following rules:
+     *
+     * 1. If a nonterminal B is immediately followed by a
+     *    terminal a:
+     *
+     *        A -> α B a
+     *
+     *    then a is added to FOLLOW(B).
+     *
+     * 2. If a nonterminal B is immediately followed by a
+     *    nonterminal C:
+     *
+     *        A -> α B C
+     *
+     *    then FIRST(C) is added to FOLLOW(B).
+     *
+     *    If FIRST(C) contains ε, FOLLOW(C) is also added
+     *    to FOLLOW(B).
+     *
+     * 3. If B appears at the end of a production:
+     *
+     *        A -> α B
+     *
+     *    then FOLLOW(A) is added to FOLLOW(B).
+     *
+     * The process repeats until no FOLLOW set changes.
+     */
     fn build_follow(first_table: &FirstTable, productions: &Productions) -> FollowTable {
         let mut table = FollowTable::new();
         for Production { nt, .. } in productions {
@@ -213,17 +225,19 @@ impl FirstFollowSets {
     }
 }
 
-/// An LR(0) item.
-///
-/// Example:
-///
-///     Expr -> Term . Plus Expr
-///
-/// is represented as:
-///
-///     production = Expr -> Term Plus Expr
-///     dot = 1
-///
+/**
+ * An LR(0) item.
+ *
+ * Example:
+ *
+ *     Expr -> Term . Plus Expr
+ *
+ * is represented as:
+ *
+ *     production = Expr -> Term Plus Expr
+ *     dot = 1
+ *
+ */
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 pub struct LRItem {
     production: Production,
@@ -231,11 +245,13 @@ pub struct LRItem {
 }
 
 pub type State = BTreeSet<LRItem>;
-/// Canonical collection of LR(0) item sets.
-///
-/// Each state is a closure of LR(0) items, and transitions
-/// correspond to GOTO moves on grammar symbols.
-///
+
+/**
+ * Canonical collection of LR(0) item sets.
+ *
+ * Each state is a closure of LR(0) items, and transitions
+ * correspond to GOTO moves on grammar symbols.
+ */
 pub struct LRItems {
     pub states: IndexSet<State>,
     transitions: Vec<Transition>,
@@ -337,32 +353,37 @@ impl LRItems {
     }
 }
 
-/// SLR(1) parsing table.
-///
-/// ACTION entries contain:
-///
-///     Shift(s)
-///     Reduce(p)
-///     Accept
-///
-/// GOTO entries contain:
-///
-///     next parser state
-///
-/// Reduce actions are generated using FOLLOW sets,
-/// which makes this an SLR(1) parser rather than
-/// a pure LR(0) parser.
+/**
+ * SLR(1) parsing table.
+ *
+ * ACTION entries contain:
+ *
+ *     Shift(s)
+ *     Reduce(p)
+ *     Accept
+ *
+ * GOTO entries contain:
+ *
+ *     next parser state
+ *
+ * Reduce actions are generated using FOLLOW sets,
+ * which makes this an SLR(1) parser rather than
+ * a pure LR(0) parser.
+ */
+
 pub struct SLRTable {
     pub lr_items: LRItems,
     pub actions: HashMap<(StateId, Term), Action>,
     pub gotos: HashMap<(StateId, NonTerm), Goto>,
 }
 impl SLRTable {
-    /// Inserts an ACTION entry and verifies that no
-    /// shift/reduce or reduce/reduce conflict exists.
-    ///
-    /// A conflict indicates that the grammar is not
-    /// SLR(1) under the current construction method.
+    /**
+     * Inserts an ACTION entry and verifies that no
+     * shift/reduce or reduce/reduce conflict exists.
+     *
+     * A conflict indicates that the grammar is not
+     * SLR(1) under the current construction method.
+     */
     fn insert_and_check_action_conflict(
         actions: &mut HashMap<(StateId, Term), Action>,
         key: &(StateId, Term),
@@ -376,20 +397,22 @@ impl SLRTable {
         }
     }
 
-    /// Constructs the complete SLR parsing table.
-    ///
-    /// Steps:
-    ///
-    /// 1. Compute FIRST and FOLLOW sets.
-    /// 2. Build canonical LR(0) item collection.
-    /// 3. Generate SHIFT actions from DFA transitions.
-    /// 4. Generate GOTO entries from DFA transitions.
-    /// 5. Generate REDUCE actions using FOLLOW sets.
-    /// 6. Generate ACCEPT action for the augmented
-    ///    start production.
-    ///
-    /// Any shift/reduce or reduce/reduce conflict
-    /// causes construction to fail.
+    /**
+     * Constructs the complete SLR parsing table.
+     *
+     * Steps:
+     *
+     * 1. Compute FIRST and FOLLOW sets.
+     * 2. Build canonical LR(0) item collection.
+     * 3. Generate SHIFT actions from DFA transitions.
+     * 4. Generate GOTO entries from DFA transitions.
+     * 5. Generate REDUCE actions using FOLLOW sets.
+     * 6. Generate ACCEPT action for the augmented
+     *    start production.
+     *
+     * Any shift/reduce or reduce/reduce conflict
+     * causes construction to fail.
+     */
     pub fn new(productions: &Productions) -> Self {
         let first_follow = FirstFollowSets::new(productions);
 

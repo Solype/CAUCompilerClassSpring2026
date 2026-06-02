@@ -21,6 +21,7 @@ Original grammar:\
 
 ## Parsing Pipeline
 ### Step 1 - Rule Parsing (BONUS)
+The rule parsing 
 ### Step 2 - Token Scanner (BONUS)
 
 ### Step 3 - SLR Table build (BONUS ?)
@@ -63,3 +64,5 @@ Generative AI tools were used for:
 - Understanding canonical LR(0) item collections.
 - Understanding SLR parsing tables and parser actions.
 - Reformulating and improving technical documentation.
+- Understanding of Rust libraries
+- Correction of rust lexical mistakes

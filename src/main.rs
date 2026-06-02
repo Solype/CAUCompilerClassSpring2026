@@ -72,7 +72,9 @@ pub fn display_node(
     }
 }
 
-/// Can be used to display SLR Table in markdown format
+/**
+ * Can be used to display SLR Table in markdown format
+ */ 
 #[allow(dead_code)]
 fn display_slr_table(slr_table: &SLRTable, token_manager: &TokenManager) {
     let (nonterm_set, term_set): (HashSet<(&String, &usize)>, HashSet<(&String, &usize)>) =

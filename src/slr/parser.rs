@@ -7,53 +7,57 @@ use crate::{
     },
 };
 
-/// A grammar token together with source-code metadata.
-///
-/// The metadata is preserved during parsing so that
-/// syntax errors and parse-tree nodes can reference
-/// their original location in the source file.
+/**
+ * A grammar token together with source-code metadata.
+ * 
+ * The metadata is preserved during parsing so that
+ * syntax errors and parse-tree nodes can reference
+ * their original location in the source file.
+ */ 
 #[derive(Debug, Clone)]
 pub struct TokenWithMetadata {
     pub token: Token,
     pub metadata: TokenMetadata,
 }
-
-/// Element stored on the parser stack.
-///
-/// The parser follows the classical LR stack layout:
-///
-///     State₀ Symbol₁ State₁ Symbol₂ State₂ ...
-///
-/// States are used for ACTION/GOTO lookups, while
-/// tokens/nonterminals are preserved to build the
-/// parse tree during reductions.
-///
-/// Example stack:
-///
-///     [State(0),
-///      Token(id),
-///      State(5),
-///      Token(expr),
-///      State(9)]
-///
-/// This corresponds to the classical LR parser
-/// stack representation:
-///
-///     0 id 5 expr 9
+/**
+ * Element stored on the parser stack.
+ *
+ * The parser follows the classical LR stack layout:
+ *
+ *     State₀ Symbol₁ State₁ Symbol₂ State₂ ...
+ *
+ * States are used for ACTION/GOTO lookups, while
+ * tokens/nonterminals are preserved to build the
+ * parse tree during reductions.
+ *
+ * Example stack:
+ *
+ *     [State(0),
+ *      Token(id),
+ *      State(5),
+ *      Token(expr),
+ *      State(9)]
+ *
+ * This corresponds to the classical LR parser
+ * stack representation:
+ *
+ *     0 id 5 expr 9
+ */
 #[derive(Clone)]
 enum StackValue {
     State(StateId),
     Token(TreeNode<TokenWithMetadata>),
 }
-
-/// SLR parser implementation.
-///
-/// The parser uses an SLR parsing table generated
-/// from the grammar and constructs a parse tree
-/// while validating the input token sequence.
-///
-/// Parsing is performed using shift, reduce, goto
-/// and accept operations.
+/**
+ * SLR parser implementation.
+ *
+ * The parser uses an SLR parsing table generated
+ * from the grammar and constructs a parse tree
+ * while validating the input token sequence.
+ *
+ * Parsing is performed using shift, reduce, goto
+ * and accept operations.
+ */
 pub struct Parser {
     pub slr_table: SLRTable,
     pub productions: Productions,
@@ -61,13 +65,14 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// Creates a new parser instance.
-    ///
-    /// An SLR parsing table is generated from the
-    /// provided grammar productions.
-    ///
-    /// The parser stack is initially empty and is
-    /// initialized when parsing begins.
+    /**
+     *  Creates a new parser instance.
+     * An SLR parsing table is generated from the
+     * provided grammar productions.
+     * 
+     * The parser stack is initially empty and is
+     * initialized when parsing begins.
+     */
     pub fn new(productions: &Productions) -> Self {
         Self {
             slr_table: SLRTable::new(productions),
@@ -75,24 +80,25 @@ impl Parser {
             stack: vec![],
         }
     }
-
-    /// Executes a parser ACTION.
-    ///
-    /// Possible actions:
-    ///
-    /// Shift:
-    ///     - consume the next input token
-    ///     - create a leaf node
-    ///     - push the token and destination state
-    ///
-    /// Reduce:
-    ///     - pop symbols corresponding to the
-    ///       production body
-    ///     - create a nonterminal node
-    ///     - push the new node onto the stack
-    ///
-    /// Accept:
-    ///     - consume the END token and finish parsing
+    /**
+     * Executes a parser ACTION.
+     *
+     * Possible actions:
+     *
+     * Shift:
+     *     - consume the next input token
+     *     - create a leaf node
+     *     - push the token and destination state
+     *
+     * Reduce:
+     *     - pop symbols corresponding to the
+     *       production body
+     *     - create a nonterminal node
+     *     - push the new node onto the stack
+     *
+     * Accept:
+     *     - consume the END token and finish parsing
+     */
     fn action(&mut self, action: &Action, inputs: &mut Vec<(Term, TokenMetadata)>) {
         match action {
             Action::Shift(state_id) => {
@@ -158,33 +164,37 @@ impl Parser {
         }
     }
 
-    /// Executes a GOTO transition.
-    ///
-    /// After a reduction, the parser consults the
-    /// GOTO table using:
-    ///
-    ///     (current_state, reduced_nonterminal)
-    ///
-    /// and pushes the resulting state onto the stack.
+    /**
+     * Executes a GOTO transition.
+     *
+     * After a reduction, the parser consults the
+     * GOTO table using:
+     *
+     *     (current_state, reduced_nonterminal)
+     *
+     * and pushes the resulting state onto the stack.
+     */
     fn goto(&mut self, goto: Goto) {
         self.stack.push(StackValue::State(goto));
     }
 
-    /// Parses a token sequence and constructs a parse tree.
-    ///
-    /// Algorithm:
-    ///
-    /// 1. Initialize the stack with state 0.
-    /// 2. Repeatedly consult the ACTION table.
-    /// 3. Execute Shift, Reduce or Accept.
-    /// 4. After each reduction, consult the GOTO table.
-    /// 5. Continue until the input is accepted.
-    ///
-    /// On success, the root of the parse tree is
-    /// returned.
-    ///
-    /// On failure, a syntax error describing the
-    /// unexpected token is returned.
+    /**
+     * Parses a token sequence and constructs a parse tree.
+     *
+     * Algorithm:
+     *
+     * 1. Initialize the stack with state 0.
+     * 2. Repeatedly consult the ACTION table.
+     * 3. Execute Shift, Reduce or Accept.
+     * 4. After each reduction, consult the GOTO table.
+     * 5. Continue until the input is accepted.
+     *
+     * On success, the root of the parse tree is
+     * returned.
+     *
+     * On failure, a syntax error describing the
+     * unexpected token is returned.
+     */
     pub fn parse(
         &mut self,
         mut inputs: Vec<(Term, TokenMetadata)>,
