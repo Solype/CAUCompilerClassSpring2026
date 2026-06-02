@@ -6,12 +6,12 @@ use crate::{error::file_error, ruleparser::rules_and_tokens::TokenMetadata};
 #[derive(Debug)]
 pub struct RegexTokenRule {
     result: String,
-    regex : Regex,
+    regex: Regex,
 }
 
 #[derive(Debug, Default)]
 pub struct RegexTokenizer {
-    rule_set: Vec<RegexTokenRule>
+    rule_set: Vec<RegexTokenRule>,
 }
 
 
@@ -21,9 +21,7 @@ static RAW_RULE_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 impl RegexTokenizer {
-
-    pub fn new() -> Self
-    {
+    pub fn new() -> Self {
         Self::default()
     }
 
@@ -41,7 +39,7 @@ impl RegexTokenizer {
                     1,
                     line.len(),
                     &line.to_string(),
-                    &e
+                    &e,
                 ));
             }
         }
@@ -76,8 +74,11 @@ impl RegexTokenizer {
 
         // We try to create a new regex based on the regex given in the line. if it does not success, we return an error
         let regex = Regex::new(&regex_str).map_err(|e| {
-                format!("Invalid regex '{}' for token '{}'\n{}", regex_str, result, e )
-            })?;
+            format!(
+                "Invalid regex '{}' for token '{}'\n{}",
+                regex_str, result, e
+            )
+        })?;
 
         // we push the rule inside of the rule set.
         self.rule_set.push(RegexTokenRule {
@@ -134,7 +135,7 @@ impl RegexTokenizer {
         input: &String,
     ) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
-        
+
         for (line_nb, line) in input.split("\n").enumerate() {
             let mut new_tokens = self.tokenize_line(line, line_nb)?;
             tokens.append(&mut new_tokens);
@@ -172,7 +173,6 @@ impl RegexTokenizer {
         let mut col = 1;
 
         while cursor < line.len() {
-
             let remaining = &line[cursor..];
 
             // Ignore espaces
@@ -189,19 +189,18 @@ impl RegexTokenizer {
             // We check among all the rules if one match, if that's the cas, we put mathed to true and add the token into the list of tokens
             for rule in &self.rule_set {
                 if let Some((token, mut metadata, text_size)) =
-                    self.check_rule(rule, remaining, line_number, &mut col) {
-
-                        metadata.line = line.to_string();
-                        tokens.push((token, metadata));
-                        cursor += text_size;
-                        matched = true;
-                        break;
+                    self.check_rule(rule, remaining, line_number, &mut col)
+                {
+                    metadata.line = line.to_string();
+                    tokens.push((token, metadata));
+                    cursor += text_size;
+                    matched = true;
+                    break;
                 }
             }
 
             // if nothing matched, we throw an error
             if !matched {
-
                 let current = remaining.chars().next().unwrap();
 
                 return Err(file_error(
@@ -210,10 +209,7 @@ impl RegexTokenizer {
                     col,
                     current.len_utf8(),
                     &remaining.lines().next().unwrap_or("").to_string(),
-                    &format!(
-                        "Unexpected character '{}'",
-                        current
-                    ),
+                    &format!("Unexpected character '{}'", current),
                 ));
             }
         }
@@ -221,11 +217,7 @@ impl RegexTokenizer {
         Ok(tokens)
     }
 
-
-
-
-
-    pub fn set_default_rules(&mut self) -> &mut Self{
+    pub fn set_default_rules(&mut self) -> &mut Self {
         // -----------------------------
         // KEYWORDS
         // -----------------------------
@@ -350,5 +342,4 @@ impl RegexTokenizer {
         });
         self
     }
-
 }

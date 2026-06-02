@@ -32,15 +32,31 @@ fn process_line(infos: (usize, impl Into<String>),) -> Result<Option<RawProducti
     // those are not valid input.
     if line.len() < 3 {
         let line_size = raw.len();
-        let err_message = "Each rule must have at least have 3 arguments, put '' in case of empty arguments".to_string();
-        return Err(file_error(&"Rules".to_string(), line_number, line_size, 1, &raw, &err_message));
+        let err_message =
+            "Each rule must have at least have 3 arguments, put '' in case of empty arguments"
+                .to_string();
+        return Err(file_error(
+            &"Rules".to_string(),
+            line_number,
+            line_size,
+            1,
+            &raw,
+            &err_message,
+        ));
     }
 
     // check the presence of "->" in second position.
     if line[1] != "->" {
         let col = raw.find(&line[1]).unwrap_or(0) + 1;
         let err_message = format!("Expected symbol : '->', found: '{}'", line[1]);
-        return Err(file_error(&"Rules".to_string(), line_number, col, line[1].len(), &raw, &err_message));
+        return Err(file_error(
+            &"Rules".to_string(),
+            line_number,
+            col,
+            line[1].len(),
+            &raw,
+            &err_message,
+        ));
     }
 
     let inputs = if line.len() == 3 && line[2] == "''" {
@@ -60,7 +76,10 @@ pub fn parse_rules(buffer: &String) -> Result<Vec<RawProduction>, String> {
     // - then, on the result of each process line that are in the new array,
     //      we get all the value of the non error lines, but throw an error if there is an error among the process line result
     let rules: Vec<Option<RawProduction>> = buffer
-        .split('\n').enumerate().map(process_line).collect::<Result<Vec<_>, _>>()?;
+        .split('\n')
+        .enumerate()
+        .map(process_line)
+        .collect::<Result<Vec<_>, _>>()?;
 
     // we return the list given once all the empty line are removed, which is the use of "flatten"
     Ok(rules.into_iter().flatten().collect())

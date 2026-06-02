@@ -3,14 +3,13 @@ use std::{
     io::{self, Read},
 };
 
-
 use crate::{helper::print_help, ruleparser::default::DEFAULT_RULES};
 
 pub struct Parameters {
     pub rules: String,
     pub input_tokens: String,
     pub regex: Option<String>,
-    pub use_regex: bool
+    pub use_regex: bool,
 }
 
 
@@ -33,8 +32,8 @@ fn read_source(path: Option<&str>) -> Result<String, String> {
         Some(file_path) => {
             let mut file = match fs::File::open(file_path) {
                 Ok(file) => file,
-                Err(e) => return Err(format!("File '{}' : {:?}", file_path,  e.kind()))
-            }; 
+                Err(e) => return Err(format!("File '{}' : {:?}", file_path, e.kind())),
+            };
 
             file.read_to_string(&mut buffer)
                 .unwrap_or_else(|_| panic!("cannot read file: {file_path}"));
@@ -84,8 +83,12 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
     while i < args.len() {
         match args[i].as_str() {
             "-r" => {
-                if rules_file.is_some() { return Err("duplicate -r option".to_string()); }
-                if i + 1 >= args.len() { return Err("-r requires a file path".to_string()); }
+                if rules_file.is_some() {
+                    return Err("duplicate -r option".to_string());
+                }
+                if i + 1 >= args.len() {
+                    return Err("-r requires a file path".to_string());
+                }
                 rules_file = Some(args[i + 1].as_str());
                 i += 2;
             }
@@ -96,15 +99,22 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
             }
 
             "--regex-path" => {
-                if regex_file.is_some() { return Err("duplicate --regex_file option".to_string()); }
-                if i + 1 >= args.len() { return Err("--regex_file requires a file path".to_string()); }
+                if regex_file.is_some() {
+                    return Err("duplicate --regex_file option".to_string());
+                }
+                if i + 1 >= args.len() {
+                    return Err("--regex_file requires a file path".to_string());
+                }
                 regex_file = Some(args[i + 1].as_str());
                 i += 2;
             }
 
             "-h" => {
                 print_help();
-                return Err("Sorry, we do not execute the program if you ask for what it does ^^'".to_string());
+                return Err(
+                    "Sorry, we do not execute the program if you ask for what it does ^^'"
+                        .to_string(),
+                );
             }
 
             file => {
@@ -133,5 +143,10 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
         (None, true) => None,
     };
 
-    Ok(Parameters { rules, input_tokens, regex, use_regex })
+    Ok(Parameters {
+        rules,
+        input_tokens,
+        regex,
+        use_regex,
+    })
 }

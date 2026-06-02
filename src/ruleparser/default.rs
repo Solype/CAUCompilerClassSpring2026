@@ -7,4 +7,4 @@
  * If the file does not exist during compilation,
  * Rust will emit a compile-time error.
  */
- pub const DEFAULT_RULES: &str = include_str!("../../SLR.cfg");
+pub const DEFAULT_RULES: &str = include_str!("../../CFG.cfg");
