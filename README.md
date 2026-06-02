@@ -1,6 +1,46 @@
 # CAUCompilerClassSpring2026
 Final project of the compiler class in Chung Ang Uni in Spring 2026
 
+## Usage
+
+USAGE:
+    syntax_analyzer [OPTIONS] <token_file>
+
+POSITIONAL ARGUMENTS:
+    <token_file>
+        Source file to tokenize and parse.
+
+OPTIONS:
+    -r <file>            Path to the CFG grammar file.
+    --use-regex          Enable regex-based tokenizer. If use alone, it uses the built-in regexes
+    --regex-path <file>  Path to regex token definitions. It only matters if the regex-based tokenizer is enabled
+    -h, --help           Show this help message.
+
+DESCRIPTION:
+    • loads a CFG grammar
+    • tokenizes the input source
+    • generates SLR parsing tables
+    • parses the token stream
+    • builds a parse tree
+
+GRAMMAR FORMAT:
+    CODE -> VDECL CODE
+    CODE -> ''
+
+REGEX TOKEN FORMAT:
+    TOKEN_NAME:regex
+
+EXAMPLES:
+    syntax_analyzer -r grammar.txt source.code
+
+    syntax_analyzer -r grammar.txt \
+             --use-regex \
+             --regex-path lexer.regex \
+             source.code
+
+AUTHOR:
+    Made with shift/reduce conflicts and emotional damage.
+
 ## CFG explanation
 Our non-ambiguous CFG can be found [here](CFG.cfg).
 We made 2 changes:
@@ -21,8 +61,81 @@ Original grammar:\
 
 ## Parsing Pipeline
 ### Step 1 - Rule Parsing (BONUS)
-The rule parsing 
+
+The rule parser reads a CFG grammar description and converts it into an internal representation usable by the SLR parser generator.
+
+Features:
+- Support for epsilon productions (`''`)
+- Automatic terminal/non-terminal discovery
+- Production validation
+- Human-friendly syntax diagnostics with line and column information
+- Colored error messages
+- Embedded default grammar support
+
+Example:
+
+```txt
+CODE -> VDECL CODE
+CODE -> ''
+VDECL -> vtype id semi
+```Regex
+Those rules must be in the format :
+```
+<Token> -> <Token list>
+```
+with space before and after `->`
+
+
+---
+
 ### Step 2 - Token Scanner (BONUS)
+
+Two tokenization modes are available:
+
+#### Manual Token Scanner
+
+Reads a whitespace-separated token stream and attaches metadata to every token:
+- line number
+- column number
+- original lexeme
+
+Example:
+
+```txt
+vtype id lparen rparen
+```
+Example:
+
+```c
+int hello() {
+    return 42;
+}
+```
+
+becomes:
+
+```txt
+vtype id lparen rparen lbrace return num semi rbrace
+```
+
+Features:
+- Custom regex rule files
+- Built-in default lexer
+- Longest-prefix matching
+- Token metadata generation
+- Precise lexer diagnostics with source highlighting
+
+Example rule:
+
+```txt
+ID:[a-zA-Z_][a-zA-Z0-9_]*
+NUM:[0-9]+
+```
+Those rules must be in the format :
+```
+<Token>:<Regex>
+```
+with no space in between
 
 ### Step 3 - SLR Table build (BONUS ?)
 The canonical LR(0) collection is represented as a DFA.

@@ -6,7 +6,7 @@ pub fn print_help() {
 {title}
 
 {usage}
-    compiler [OPTIONS] <token_file>
+    syntax_analyzer [OPTIONS] <token_file>
 
 {positional}
     <token_file>
@@ -33,9 +33,9 @@ pub fn print_help() {
     TOKEN_NAME:regex
 
 {examples}
-    compiler -r grammar.txt source.code
+    syntax_analyzer -r grammar.txt source.code
 
-    compiler -r grammar.txt \
+    syntax_analyzer -r grammar.txt \
              --use-regex \
              --regex-path lexer.regex \
              source.code
