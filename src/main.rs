@@ -63,6 +63,19 @@ pub fn display_node(
     }
 }
 
+/**
+ * Produces the raw token stream from the input source.
+ *
+ * Depending on the configuration:
+ *   - regex-based tokenization is used
+ *   - or whitespace token scanning is performed
+ *
+ * When regex tokenization is enabled:
+ *   - custom regex rules may be loaded from a file
+ *   - otherwise default lexer rules are used
+ *
+ * Returns the cooked token stream enriched with metadata.
+ */
 fn cook_tokens(input: &Parameters, rules: &TokenManager) -> Result<Vec<(String, TokenMetadata)>, String>
 {
     let mut reg = RegexTokenizer::new();
@@ -82,6 +95,20 @@ fn cook_tokens(input: &Parameters, rules: &TokenManager) -> Result<Vec<(String, 
 }
 
 
+/**
+ * Executes the complete compiler/parsing pipeline.
+ *
+ * Pipeline stages:
+ *   - load CLI parameters and source files
+ *   - build grammar productions
+ *   - tokenize the input source
+ *   - convert tokens into parser terminals
+ *   - generate the SLR parser
+ *   - parse the token stream
+ *   - display the resulting parse tree
+ *
+ * Returns the first encountered compilation or parsing error.
+ */
 fn run() -> Result<(), String> {
     let input = get_rule_and_input()?;
 
@@ -99,6 +126,12 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
+/**
+ * Program entry point.
+ *
+ * Runs the compiler pipeline and prints formatted diagnostics
+ * if an error occurs before exiting the program.
+ */
 #[allow(unreachable_code)]
 fn main() -> Result<(), String> {
 

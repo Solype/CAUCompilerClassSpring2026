@@ -13,6 +13,19 @@ pub struct Parameters {
     pub use_regex: bool
 }
 
+
+/**
+ * Reads source content either from a file or from standard input.
+ *
+ * If a file path is provided:
+ *   - the file is opened
+ *   - its full content is loaded into memory
+ *
+ * Otherwise:
+ *   - data is read from stdin until EOF
+ *
+ * Returns the complete source buffer as a string.
+ */
 fn read_source(path: Option<&str>) -> Result<String, String> {
     let mut buffer = String::new();
 
@@ -37,6 +50,27 @@ fn read_source(path: Option<&str>) -> Result<String, String> {
     Ok(buffer)
 }
 
+/**
+ * Parses command-line arguments and loads all required compiler inputs.
+ *
+ * Supported options:
+ *   - `-r <file>`           : grammar configuration file
+ *   - `--use-regex`         : enable regex-based tokenization
+ *   - `--regex-path <file>` : regex rule definition file
+ *   - `-h`                  : display help message
+ *
+ * Positional argument:
+ *   - source/token input file
+ *
+ * Input sources are automatically loaded into memory:
+ *   - grammar rules
+ *   - token/source input
+ *   - optional regex definitions
+ *
+ * If no grammar file is provided, embedded default rules are used.
+ *
+ * Returns a fully initialized `Parameters` structure.
+ */
 pub fn get_rule_and_input() -> Result<Parameters, String> {
     let args: Vec<String> = env::args().collect();
 
