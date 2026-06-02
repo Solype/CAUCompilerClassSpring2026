@@ -34,6 +34,15 @@ impl TokenManager {
         new_var
     }
 
+    /**
+     * Resolves a token name into its internal parser representation.
+     *
+     * Returns:
+     *   - `Token::Term`     for terminal symbols
+     *   - `Token::NonTerm`  for non-terminal symbols
+     *
+     * Fails if the token name is unknown.
+     */
     pub fn get_token(&self, str: &String) -> Result<Token, String> {
         if let Some(id) = self.token.get(str) {
             if self.non_terminal_token.get(&id).is_some() {
@@ -44,6 +53,12 @@ impl TokenManager {
         return Err(format!("the token '{}' does not exists", str));
     }
 
+    /**
+     * Returns the textual name associated with a token ID.
+     *
+     * If the ID does not exist in the token table,
+     * a placeholder string is returned instead.
+     */
     pub fn get_token_name(&self, id: usize) -> String {
         self.token
             .iter()
@@ -57,17 +72,34 @@ impl TokenManager {
             .unwrap_or_else(|| format!("<unknown:{id}>"))
     }
 
+    /**
+     * Registers a new terminal token if it does not already exist.
+     *
+     * Token IDs are assigned incrementally based on insertion order.
+     */
     pub fn add_token(&mut self, str: &String) -> &mut Self {
         let default_val = self.token.len();
         let _ = *self.token.entry(str.to_string()).or_insert(default_val);
         return self;
     }
 
-    fn create_production(&self, prod: &RawProduction) -> Result<SimpleProduction, String> {
-        let nt = self
-            .get_token(&prod.nt)
-            .map_err(|_| format!("Unknown token '{}' in production left side", prod.nt))?
-            .sym();
+    /**
+     * Converts a raw grammar production into its internal parser representation.
+     *
+     * Every token name is resolved into its corresponding grammar symbol.
+     *
+     * Returns an error if:
+     *   - the left-side non-terminal is unknown
+     *   - one of the production inputs does not exist
+     */
+    fn create_production(
+        &self,
+        prod: &RawProduction,
+    ) -> Result<SimpleProduction, String> {
+
+        let nt = self.get_token(&prod.nt).map_err(|_| {
+                format!("Unknown token '{}' in production left side", prod.nt)
+            })?.sym();
 
         let mut inputs = Vec::new();
 
@@ -90,6 +122,17 @@ impl TokenManager {
         Ok(SimpleProduction { nt, inputs })
     }
 
+    /**
+     * Registers a new grammar production into the parser.
+     *
+     * This function:
+     *   - creates missing tokens
+     *   - marks the left-side token as a non-terminal
+     *   - converts the raw production into parser symbols
+     *   - inserts the production into the grammar set
+     *
+     * Returns an error if symbol resolution fails.
+     */
     pub fn add_production(&mut self, prod: &RawProduction) -> Result<&mut Self, String> {
         self.add_token(&prod.nt);
         for elem in prod.inputs.iter() {
@@ -102,6 +145,13 @@ impl TokenManager {
         return Ok(self);
     }
 
+    /**
+     * Registers multiple grammar productions into the parser.
+     *
+     * Productions are inserted sequentially using `add_production`.
+     *
+     * Stops and returns the first encountered error.
+     */
     pub fn add_productions(&mut self, prod: &Vec<RawProduction>) -> Result<&mut Self, String> {
         for elem in prod.iter() {
             self.add_production(elem)?;
@@ -109,6 +159,12 @@ impl TokenManager {
         Ok(self)
     }
 
+    /**
+     * Builds and returns the finalized parser production set.
+     *
+     * Internal grammar representations are converted into parser-ready
+     * productions using the current non-terminal table.
+     */
     pub fn get_production(&self) -> IndexSet<Production> {
         self.productions
             .iter()
@@ -116,7 +172,19 @@ impl TokenManager {
             .collect::<IndexSet<Production>>()
     }
 
-    pub fn scan_tokens(&self, buffer: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
+    /**
+     * Splits a whitespace-separated token stream into raw tokens.
+     *
+     * Each extracted token is associated with positional metadata
+     * including line number, column, original lexeme, and source line.
+     *
+     * This scanner assumes tokens are already separated by spaces or tabs.
+     */
+    pub fn scan_tokens(
+        &self,
+        buffer: &String,
+    ) -> Result<Vec<(String, TokenMetadata)>, String> {
+
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
         let lines: Vec<&str> = buffer.split('\n').collect();
@@ -144,23 +212,29 @@ impl TokenManager {
         Ok(tokens)
     }
 
-    fn wrap_single_token(
-        &self,
-        unwrapped_token: &(String, TokenMetadata),
-    ) -> Result<(Term, TokenMetadata), String> {
-        let token = self.get_token(&unwrapped_token.0).map_err(|_| {
-            file_error(
-                &"Tokens".to_string(),
-                unwrapped_token.1.span.0,
-                unwrapped_token.1.span.1,
-                unwrapped_token.1.str.len(),
-                &unwrapped_token.1.str,
-                &format!(
-                    "Unknown token '{}', it can be either the regex or your typing",
-                    unwrapped_token.0
-                ),
-            )
-        })?;
+    /**
+     * Converts a raw token into a parser terminal symbol.
+     *
+     * The token name is resolved using the token table and validated
+     * to ensure it is a terminal symbol.
+     *
+     * Returns a formatted lexer/parser diagnostic if:
+     *   - the token does not exist
+     *   - the token is not terminal
+     */
+    fn wrap_single_token(&self, unwrapped_token: &(String, TokenMetadata)) -> Result<(Term, TokenMetadata), String>
+    {
+        let token = self.get_token(&unwrapped_token.0)
+            .map_err(|_| {
+                file_error(
+                    &"Tokens".to_string(),
+                    unwrapped_token.1.span.0,
+                    unwrapped_token.1.span.1,
+                    unwrapped_token.1.str.len(),
+                    &unwrapped_token.1.str,
+                    &format!("Unknown token '{}', it can be either the regex or your typing", unwrapped_token.0),
+                )
+            })?;
 
         let Token::Term(term) = token else {
             return Err(file_error(
@@ -175,6 +249,17 @@ impl TokenManager {
         return Ok((term, unwrapped_token.1.clone()));
     }
 
+    /**
+     * Converts lexer tokens into parser terminal symbols.
+     *
+     * Every token is validated and resolved against the parser token table.
+     * An explicit END (`$`) token is automatically appended to the stream.
+     *
+     * The END token metadata is positioned immediately after the last token
+     * of the input, or at `(1, 1)` for an empty stream.
+     *
+     * Returns the first encountered token conversion error.
+     */
     pub fn wrap_cooked_token(
         &self,
         cooked_tokens: &Vec<(String, TokenMetadata)>,

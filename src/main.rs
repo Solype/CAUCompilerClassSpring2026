@@ -189,6 +189,21 @@ fn cook_tokens(
     return Ok(cooked_tokens);
 }
 
+
+/**
+ * Executes the complete compiler/parsing pipeline.
+ *
+ * Pipeline stages:
+ *   - load CLI parameters and source files
+ *   - build grammar productions
+ *   - tokenize the input source
+ *   - convert tokens into parser terminals
+ *   - generate the SLR parser
+ *   - parse the token stream
+ *   - display the resulting parse tree
+ *
+ * Returns the first encountered compilation or parsing error.
+ */
 fn run() -> Result<(), String> {
     let input = get_rule_and_input()?;
 
@@ -207,6 +222,12 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
+/**
+ * Program entry point.
+ *
+ * Runs the compiler pipeline and prints formatted diagnostics
+ * if an error occurs before exiting the program.
+ */
 #[allow(unreachable_code)]
 fn main() -> Result<(), String> {
     if let Err(e) = run() {
