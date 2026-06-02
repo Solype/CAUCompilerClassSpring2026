@@ -5,23 +5,20 @@ use crate::{error::file_error, ruleparser::rules_and_tokens::TokenMetadata};
 #[derive(Debug)]
 pub struct RegexTokenRule {
     result: String,
-    regex : Regex,
+    regex: Regex,
 }
 
 #[derive(Debug, Default)]
 pub struct RegexTokenizer {
-    rule_set: Vec<RegexTokenRule>
+    rule_set: Vec<RegexTokenRule>,
 }
 
 impl RegexTokenizer {
-
-    pub fn new() -> Self
-    {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn parse_file_content(&mut self, content: &String) -> Result<(), String>
-    {
+    pub fn parse_file_content(&mut self, content: &String) -> Result<(), String> {
         for (line_number, line) in content.split("\n").enumerate() {
             if let Err(e) = self.add_raw_rule(line.to_string()) {
                 return Err(file_error(
@@ -30,15 +27,14 @@ impl RegexTokenizer {
                     1,
                     line.len(),
                     &line.to_string(),
-                    &e
+                    &e,
                 ));
             }
         }
         Ok(())
     }
 
-    pub fn add_cooked_rule(&mut self, rule: RegexTokenRule)
-    {
+    pub fn add_cooked_rule(&mut self, rule: RegexTokenRule) {
         self.rule_set.push(rule);
     }
 
@@ -48,28 +44,35 @@ impl RegexTokenizer {
 
         let re = Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$").unwrap();
 
-        let caps = re.captures(&rule)
-            .ok_or_else(|| {
-                format!("Invalid regex rule '{}'\nExpected format: TOKEN_NAME:regex", rule)
-            })?;
+        let caps = re.captures(&rule).ok_or_else(|| {
+            format!(
+                "Invalid regex rule '{}'\nExpected format: TOKEN_NAME:regex",
+                rule
+            )
+        })?;
 
         let result = caps.get(1).unwrap().as_str().to_string();
         let regex_str = caps.get(2).unwrap().as_str().to_string();
 
         let regex = Regex::new(&regex_str).map_err(|e| {
-                format!("Invalid regex '{}' for token '{}'\n{}", regex_str, result, e )
-            })?;
+            format!(
+                "Invalid regex '{}' for token '{}'\n{}",
+                regex_str, result, e
+            )
+        })?;
 
-        self.rule_set.push(RegexTokenRule {
-            result,
-            regex,
-        });
+        self.rule_set.push(RegexTokenRule { result, regex });
 
         Ok(())
     }
 
-    fn check_rule(&self, rule: &RegexTokenRule, remaining: &str, line: usize, col: &mut usize) -> Option<(String, TokenMetadata, usize)>
-    {
+    fn check_rule(
+        &self,
+        rule: &RegexTokenRule,
+        remaining: &str,
+        line: usize,
+        col: &mut usize,
+    ) -> Option<(String, TokenMetadata, usize)> {
         if let Some(m) = rule.regex.find(remaining) {
             // doit matcher au début
             if m.start() != 0 {
@@ -89,17 +92,13 @@ impl RegexTokenizer {
             }
 
             return Some((rule.result.clone(), metadata, text.len()));
-
         }
         return None;
     }
 
-    pub fn tokenize(
-        &self,
-        input: &String,
-    ) -> Result<Vec<(String, TokenMetadata)>, String> {
+    pub fn tokenize(&self, input: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
-        
+
         for (line_nb, line) in input.split("\n").enumerate() {
             let mut new_tokens = self.tokenize_line(line, line_nb)?;
             tokens.append(&mut new_tokens);
@@ -107,14 +106,17 @@ impl RegexTokenizer {
         Ok(tokens)
     }
 
-    fn tokenize_line(&self, line: &str, line_number: usize) -> Result<Vec<(String, TokenMetadata)>, String> {
+    fn tokenize_line(
+        &self,
+        line: &str,
+        line_number: usize,
+    ) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens = vec![];
 
         let mut cursor = 0;
         let mut col = 1;
 
         while cursor < line.len() {
-
             let remaining = &line[cursor..];
 
             // Ignore espaces
@@ -130,18 +132,17 @@ impl RegexTokenizer {
 
             for rule in &self.rule_set {
                 if let Some((token, mut metadata, text_size)) =
-                    self.check_rule(rule, remaining, line_number, &mut col) {
-
-                        metadata.line = line.to_string();
-                        tokens.push((token, metadata));
-                        cursor += text_size;
-                        matched = true;
-                        break;
+                    self.check_rule(rule, remaining, line_number, &mut col)
+                {
+                    metadata.line = line.to_string();
+                    tokens.push((token, metadata));
+                    cursor += text_size;
+                    matched = true;
+                    break;
                 }
             }
 
             if !matched {
-
                 let current = remaining.chars().next().unwrap();
 
                 return Err(file_error(
@@ -150,10 +151,7 @@ impl RegexTokenizer {
                     col,
                     current.len_utf8(),
                     &remaining.lines().next().unwrap_or("").to_string(),
-                    &format!(
-                        "Unexpected character '{}'",
-                        current
-                    ),
+                    &format!("Unexpected character '{}'", current),
                 ));
             }
         }
@@ -161,11 +159,7 @@ impl RegexTokenizer {
         Ok(tokens)
     }
 
-
-
-
-
-    pub fn set_default_rules(&mut self) -> &mut Self{
+    pub fn set_default_rules(&mut self) -> &mut Self {
         // -----------------------------
         // KEYWORDS
         // -----------------------------
@@ -290,5 +284,4 @@ impl RegexTokenizer {
         });
         self
     }
-
 }

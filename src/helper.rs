@@ -43,30 +43,18 @@ pub fn print_help() {
 {author}
     Made with shift/reduce conflicts and emotional damage.
 "#,
-        title       = "Mini Compiler / SLR Parser".bright_green().bold(),
-
-        usage       = "USAGE:".bright_blue().bold(),
-
-        positional  = "POSITIONAL ARGUMENTS:".bright_blue().bold(),
-
-        options     = "OPTIONS:".bright_blue().bold(),
-
+        title = "Mini Compiler / SLR Parser".bright_green().bold(),
+        usage = "USAGE:".bright_blue().bold(),
+        positional = "POSITIONAL ARGUMENTS:".bright_blue().bold(),
+        options = "OPTIONS:".bright_blue().bold(),
         description = "DESCRIPTION:".bright_blue().bold(),
-
-        grammar     = "GRAMMAR FORMAT:".bright_blue().bold(),
-
-        regex       = "REGEX TOKEN FORMAT:".bright_blue().bold(),
-
-        examples    = "EXAMPLES:".bright_blue().bold(),
-
-        author      = "AUTHOR:".bright_blue().bold(),
-
-        r_opt       = "-r <file>".yellow(),
-
-        regex_opt   = "--use-regex".yellow(),
-
-        regex_path  = "--regex-path <file>".yellow(),
-
-        help_opt    = "-h, --help".yellow(),
+        grammar = "GRAMMAR FORMAT:".bright_blue().bold(),
+        regex = "REGEX TOKEN FORMAT:".bright_blue().bold(),
+        examples = "EXAMPLES:".bright_blue().bold(),
+        author = "AUTHOR:".bright_blue().bold(),
+        r_opt = "-r <file>".yellow(),
+        regex_opt = "--use-regex".yellow(),
+        regex_path = "--regex-path <file>".yellow(),
+        help_opt = "-h, --help".yellow(),
     );
 }
