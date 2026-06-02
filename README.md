@@ -11,35 +11,73 @@ POSITIONAL ARGUMENTS:
         Source file to tokenize and parse.
 
 OPTIONS:
-    -r <file>            Path to the CFG grammar file.
-    --use-regex          Enable regex-based tokenizer. If use alone, it uses the built-in regexes
-    --regex-path <file>  Path to regex token definitions. It only matters if the regex-based tokenizer is enabled
-    -h, --help           Show this help message.
+- `-r <file>`            Path to the CFG grammar file.
+- `--use-regex`          Enable regex-based tokenizer. If use alone, it uses the built-in regexes
+- `--regex-path <file>`  Path to regex token definitions. It only matters if the regex-based tokenizer is enabled
+- `-h`, `--help`           Show the usage message.
 
 DESCRIPTION:
-    • loads a CFG grammar
-    • tokenizes the input source
-    • generates SLR parsing tables
-    • parses the token stream
-    • builds a parse tree
+- loads a CFG grammar
+- tokenizes the input source
+- generates SLR parsing tables
+- parses the token stream
+- builds a parse tree
 
 GRAMMAR FORMAT:
-    CODE -> VDECL CODE
-    CODE -> ''
+
+`CODE -> VDECL CODE`
+
+`CODE -> ''`
 
 REGEX TOKEN FORMAT:
-    TOKEN_NAME:regex
+
+`TOKEN_NAME:regex`
 
 EXAMPLES:
-    syntax_analyzer -r grammar.txt source.code
-
-    syntax_analyzer -r grammar.txt \
-             --use-regex \
-             --regex-path lexer.regex \
-             source.code
-
+```
+syntax_analyzer -r grammar.txt source.code
+```
+```
+syntax_analyzer -r grammar.txt \
+                --use-regex \
+                --regex-path lexer.regex \
+                source.code
+```
 AUTHOR:
     Made with shift/reduce conflicts and emotional damage.
+
+## Compilation
+### Requirements
+
+- Rust 1.75+
+- Cargo
+
+Check your installation:
+
+```bash
+rustc --version
+cargo --version
+```
+
+### Build
+
+To compile the project in release mode:
+
+```bash
+cargo build --release
+```
+
+The optimized executable will be generated in:
+
+```txt
+target/release/syntax_analyzer
+```
+
+Example:
+
+```bash
+./target/release/syntax_analyzer -h
+```
 
 ## CFG explanation
 Our non-ambiguous CFG can be found [here](CFG.cfg).
@@ -78,11 +116,9 @@ Example:
 CODE -> VDECL CODE
 CODE -> ''
 VDECL -> vtype id semi
-```Regex
-Those rules must be in the format :
 ```
-<Token> -> <Token list>
-```
+
+Those rules must be in the format `<Token> -> <Token list>`
 with space before and after `->`
 
 
@@ -106,18 +142,6 @@ vtype id lparen rparen
 ```
 Example:
 
-```c
-int hello() {
-    return 42;
-}
-```
-
-becomes:
-
-```txt
-vtype id lparen rparen lbrace return num semi rbrace
-```
-
 Features:
 - Custom regex rule files
 - Built-in default lexer
@@ -131,11 +155,22 @@ Example rule:
 ID:[a-zA-Z_][a-zA-Z0-9_]*
 NUM:[0-9]+
 ```
-Those rules must be in the format :
+Those rules must be in the format :`<Token>:<Regex>` with no space in between
+
+This allow to parse and transform file like :
+
+```c
+int hello() {
+    return 42;
+}
 ```
-<Token>:<Regex>
+
+Into a token list like :
+
+```txt
+vtype id lparen rparen lbrace return num semi rbrace
 ```
-with no space in between
+
 
 ### Step 3 - SLR Table build (BONUS ?)
 The canonical LR(0) collection is represented as a DFA.
