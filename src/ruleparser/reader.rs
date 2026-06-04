@@ -6,65 +6,56 @@ use super::rules_and_tokens::RawProduction;
  * This function is used to parse a single line inside of the file where the CFG is defined.
  * @param info holds 2 values inside a tuple : the line number (usize) and the line (in form of a string)
  */
-fn process_line(infos: (usize, impl Into<String>)) -> Result<Option<RawProduction>, String> {
-    // split the information hold by the parameter in dedicated variable so it's easier to manipulate them
-    // buffer.into() to automatically convert the line into a String object
+use regex::Regex;
+
+fn process_line(
+    infos: (usize, impl Into<String>),
+) -> Result<Option<RawProduction>, String>
+{
     let (line_number, buffer) = infos;
     let raw = buffer.into();
+    println!("line: {}", raw);
 
-    // We preprocess the line to remove all the white spaces
-    let line: Vec<String> = raw
-        .split(&[' ', '\t'])
-        .filter(|x| !x.is_empty())
-        .map(|x| x.to_string())
-        .collect();
+    let line = raw.trim();
 
-    // if the line is empty, we just skip the line, we do not need to throw an error.
     if line.is_empty() {
         return Ok(None);
     }
 
-    // expected term :
-    // EXPR -> TERM PLUS TERM
+    // NONTERM -> SYMBOL SYMBOL SYMBOL
+    // NONTERM -> ''
+    let re = Regex::new(
+        r"^([A-Z][A-Z0-9_]*)\s*->\s*(('')|([A-Z][A-Z0-9_]*|[a-z][a-z0-9_]*)(\s+([A-Z][A-Z0-9_]*|[a-z][a-z0-9_]*))*)$"
+    ).unwrap();
 
-    // if the line is less than three words, and is not empty, it means that the form is either EXPR or EXPR ->
-    // those are not valid input.
-    if line.len() < 3 {
-        let line_size = raw.len();
-        let err_message =
-            "Each rule must have at least have 3 arguments, put '' in case of empty arguments"
-                .to_string();
-        return Err(file_error(
-            &"Rules".to_string(),
-            line_number,
-            line_size,
-            1,
-            &raw,
-            &err_message,
-        ));
-    }
-
-    // check the presence of "->" in second position.
-    if line[1] != "->" {
-        let col = raw.find(&line[1]).unwrap_or(0) + 1;
-        let err_message = format!("Expected symbol : '->', found: '{}'", line[1]);
-        return Err(file_error(
-            &"Rules".to_string(),
-            line_number,
-            col,
-            line[1].len(),
-            &raw,
-            &err_message,
-        ));
-    }
-
-    let inputs = if line.len() == 3 && line[2] == "''" {
-        vec![]
-    } else {
-        line[2..].to_vec()
+    let captures = match re.captures(line) {
+        Some(c) => c,
+        None => {
+            return Err(file_error(
+                &"Rules".to_string(),
+                line_number,
+                1,
+                line.len(),
+                &raw,
+                &"Invalid production format".to_string(),
+            ));
+        }
     };
 
-    Ok(Some(RawProduction::new(line[0].clone(), inputs)))
+
+    let lhs = captures.get(1).unwrap().as_str().to_string();
+
+    let rhs = captures.get(2).unwrap().as_str();
+
+    let inputs = if rhs == "''" {
+        vec![]
+    } else {
+        rhs.split_whitespace()
+            .map(String::from)
+            .collect()
+    };
+
+    Ok(Some(RawProduction::new(lhs, inputs)))
 }
 
 pub fn parse_rules(buffer: &String) -> Result<Vec<RawProduction>, String> {
