@@ -5,10 +5,10 @@ use crate::slr::parser::TokenWithMetadata;
 pub fn token_error(token: TokenWithMetadata) -> String {
     file_error(
         &"Token file".to_string(),
-        token.metadata.span.1,
         token.metadata.span.0,
+        token.metadata.span.1,
         token.metadata.str.len(),
-        &token.metadata.str,
+        &token.metadata.line,
         &"Unexpected token".to_string(),
     )
 }
@@ -23,7 +23,6 @@ pub fn file_error(
 ) -> String {
     let underline_col = if col_number == 0 { 0 } else { col_number - 1 };
     let underline = format!("{}{}", " ".repeat(underline_col), "^".repeat(size));
-
     format!(
         concat!(
             "{}\n",

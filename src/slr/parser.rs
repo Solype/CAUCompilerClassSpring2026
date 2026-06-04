@@ -9,11 +9,11 @@ use crate::{
 
 /**
  * A grammar token together with source-code metadata.
- * 
+ *
  * The metadata is preserved during parsing so that
  * syntax errors and parse-tree nodes can reference
  * their original location in the source file.
- */ 
+ */
 #[derive(Debug, Clone)]
 pub struct TokenWithMetadata {
     pub token: Token,
@@ -69,7 +69,7 @@ impl Parser {
      *  Creates a new parser instance.
      * An SLR parsing table is generated from the
      * provided grammar productions.
-     * 
+     *
      * The parser stack is initially empty and is
      * initialized when parsing begins.
      */

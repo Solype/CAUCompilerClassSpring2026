@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 use crate::{error::file_error, ruleparser::rules_and_tokens::TokenMetadata};
 
@@ -14,11 +14,8 @@ pub struct RegexTokenizer {
     rule_set: Vec<RegexTokenRule>,
 }
 
-
-static RAW_RULE_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$")
-        .unwrap()
-});
+static RAW_RULE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$").unwrap());
 
 impl RegexTokenizer {
     pub fn new() -> Self {
@@ -29,8 +26,7 @@ impl RegexTokenizer {
      * It takes as input the content of the file that link a token to a regex,
      * and transform each line into a rule.
      */
-    pub fn parse_file_content(&mut self, content: &String) -> Result<(), String>
-    {
+    pub fn parse_file_content(&mut self, content: &String) -> Result<(), String> {
         for (line_number, line) in content.split("\n").enumerate() {
             if let Err(e) = self.add_raw_rule(line.to_string()) {
                 return Err(file_error(
@@ -51,8 +47,7 @@ impl RegexTokenizer {
      * we use the key word "cooked" for a regex that has been successfully created, and "raw" for a
      * potential regex, that might fail when created
      */
-    pub fn add_cooked_rule(&mut self, rule: RegexTokenRule)
-    {
+    pub fn add_cooked_rule(&mut self, rule: RegexTokenRule) {
         self.rule_set.push(rule);
     }
 
@@ -61,13 +56,14 @@ impl RegexTokenizer {
      * expected format :
      * TOKEN_NAME:regex
      */
-    pub fn add_raw_rule(&mut self, rule: String) -> Result<(), String>
-    {
+    pub fn add_raw_rule(&mut self, rule: String) -> Result<(), String> {
         // We try to capture the different values within the line. if it matches the regex, we continue, or return an error
-        let caps = RAW_RULE_REGEX.captures(&rule)
-            .ok_or_else(|| {
-                format!("Invalid regex rule '{}'\nExpected format: TOKEN_NAME:regex", rule)
-            })?;
+        let caps = RAW_RULE_REGEX.captures(&rule).ok_or_else(|| {
+            format!(
+                "Invalid regex rule '{}'\nExpected format: TOKEN_NAME:regex",
+                rule
+            )
+        })?;
 
         let result = caps.get(1).unwrap().as_str().to_string();
         let regex_str = caps.get(2).unwrap().as_str().to_string();
@@ -81,10 +77,7 @@ impl RegexTokenizer {
         })?;
 
         // we push the rule inside of the rule set.
-        self.rule_set.push(RegexTokenRule {
-            result,
-            regex,
-        });
+        self.rule_set.push(RegexTokenRule { result, regex });
 
         Ok(())
     }
@@ -99,8 +92,13 @@ impl RegexTokenizer {
      * - the metadata of the token
      * - the size of the what it analized, so next call can skip what has already been identified
      */
-    fn check_rule(&self, rule: &RegexTokenRule, remaining: &str, line: usize, col: &mut usize) -> Option<(String, TokenMetadata, usize)>
-    {
+    fn check_rule(
+        &self,
+        rule: &RegexTokenRule,
+        remaining: &str,
+        line: usize,
+        col: &mut usize,
+    ) -> Option<(String, TokenMetadata, usize)> {
         // check if the regex has found someting whithin the line.
         if let Some(m) = rule.regex.find(remaining) {
             // if what has been found by the regex is not at the very beginning, we consider it did not find anything
@@ -130,10 +128,7 @@ impl RegexTokenizer {
     /**
      * it transforms the content of a file into multiple futur token as string with their metadata (line, line nb, col nb)
      */
-    pub fn tokenize(
-        &self,
-        input: &String,
-    ) -> Result<Vec<(String, TokenMetadata)>, String> {
+    pub fn tokenize(&self, input: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
         for (line_nb, line) in input.split("\n").enumerate() {
@@ -166,7 +161,11 @@ impl RegexTokenizer {
      *   - `Err(String)`
      *       formatted lexer diagnostic
      */
-    fn tokenize_line(&self, line: &str, line_number: usize) -> Result<Vec<(String, TokenMetadata)>, String> {
+    fn tokenize_line(
+        &self,
+        line: &str,
+        line_number: usize,
+    ) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens = vec![];
 
         let mut cursor = 0;
