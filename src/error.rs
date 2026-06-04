@@ -9,7 +9,7 @@ pub fn token_error(token: TokenWithMetadata) -> String {
         token.metadata.span.1,
         token.metadata.str.len(),
         &token.metadata.line,
-        &"Unexpected token".to_string(),
+        &format!("Unexpected token '{}'", token.metadata.str),
     )
 }
 
