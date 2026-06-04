@@ -1,0 +1,14 @@
+vtype id lparen rparen
+lbrace
+    if lparen boolstr rparen lbrace
+        if lparen boolstr rparen lbrace
+            if lparen boolstr rparen lbrace
+                if lparen boolstr rparen lbrace
+                    if lparen boolstr rparen lbrace
+                    rbrace
+                rbrace
+            rbrace
+        rbrace
+    rbrace
+    return num semi
+rbrace
