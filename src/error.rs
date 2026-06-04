@@ -5,8 +5,8 @@ use crate::slr::parser::TokenWithMetadata;
 pub fn token_error(token: TokenWithMetadata) -> String {
     file_error(
         &"Token file".to_string(),
-        token.metadata.span.1,
         token.metadata.span.0,
+        token.metadata.span.1,
         token.metadata.str.len(),
         &token.metadata.line,
         &"Unexpected token".to_string(),
