@@ -8,13 +8,9 @@ use super::rules_and_tokens::RawProduction;
  */
 use regex::Regex;
 
-fn process_line(
-    infos: (usize, impl Into<String>),
-) -> Result<Option<RawProduction>, String>
-{
+fn process_line(infos: (usize, impl Into<String>)) -> Result<Option<RawProduction>, String> {
     let (line_number, buffer) = infos;
     let raw = buffer.into();
-    println!("line: {}", raw);
 
     let line = raw.trim();
 
@@ -42,7 +38,6 @@ fn process_line(
         }
     };
 
-
     let lhs = captures.get(1).unwrap().as_str().to_string();
 
     let rhs = captures.get(2).unwrap().as_str();
@@ -50,9 +45,7 @@ fn process_line(
     let inputs = if rhs == "''" {
         vec![]
     } else {
-        rhs.split_whitespace()
-            .map(String::from)
-            .collect()
+        rhs.split_whitespace().map(String::from).collect()
     };
 
     Ok(Some(RawProduction::new(lhs, inputs)))
