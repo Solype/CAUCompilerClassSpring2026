@@ -214,6 +214,9 @@ fn run() -> Result<(), String> {
     let cooked_tokens = cook_tokens(&input, &rules)?;
     let tokens = rules.wrap_cooked_token(&cooked_tokens)?;
 
+    if rules.get_production().len() == 0 {
+        return Err("You must have production rules".to_string());
+    }
     let mut parser = slr::parser::Parser::new(&rules.get_production());
     let tree = parser.parse(tokens)?;
 
