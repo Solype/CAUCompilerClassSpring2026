@@ -179,11 +179,11 @@ fn cook_tokens(
 
     let cooked_tokens = if input.use_regex {
         if let Some(regex_file_content) = &input.regex {
-            reg.parse_file_content(&regex_file_content)?
+            reg.parse_file_content(&regex_file_content, &input.regex_name_file)?
         } else {
             reg.set_default_rules();
         }
-        reg.tokenize(&input.input_tokens)?
+        reg.tokenize(&input.input_tokens, &input.token_name_file)?
     } else {
         rules.scan_tokens(&input.input_tokens)?
     };
@@ -209,16 +209,16 @@ fn run() -> Result<(), String> {
     let input = get_rule_and_input()?;
 
     let mut rules = ruleparser::structs::TokenManager::new();
-    rules.add_productions(&parse_rules(&input.rules)?)?;
+    rules.add_productions(&parse_rules(&input.rules, &input.rules_name_file)?)?;
 
     let cooked_tokens = cook_tokens(&input, &rules)?;
-    let tokens = rules.wrap_cooked_token(&cooked_tokens)?;
+    let tokens = rules.wrap_cooked_token(&cooked_tokens, &input.token_name_file)?;
 
     if rules.get_production().len() == 0 {
         return Err("You must have production rules".to_string());
     }
     let mut parser = slr::parser::Parser::new(&rules.get_production());
-    let tree = parser.parse(tokens)?;
+    let tree = parser.parse(tokens, input.token_name_file)?;
 
     display_node(&tree.root, String::new(), true, input.use_regex, &rules);
     // display_slr_table(&parser.slr_table, &rules);

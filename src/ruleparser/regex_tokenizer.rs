@@ -26,11 +26,11 @@ impl RegexTokenizer {
      * It takes as input the content of the file that link a token to a regex,
      * and transform each line into a rule.
      */
-    pub fn parse_file_content(&mut self, content: &String) -> Result<(), String> {
+    pub fn parse_file_content(&mut self, content: &String, file_name: &Option<String>) -> Result<(), String> {
         for (line_number, line) in content.split("\n").enumerate() {
             if let Err(e) = self.add_raw_rule(line.to_string()) {
                 return Err(file_error(
-                    &"file_name".to_string(),
+                    &file_name.clone().unwrap(),
                     line_number,
                     1,
                     line.len(),
@@ -128,11 +128,11 @@ impl RegexTokenizer {
     /**
      * it transforms the content of a file into multiple futur token as string with their metadata (line, line nb, col nb)
      */
-    pub fn tokenize(&self, input: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
+    pub fn tokenize(&self, input: &String, file_name: &Option<String>) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
         for (line_nb, line) in input.split("\n").enumerate() {
-            let mut new_tokens = self.tokenize_line(line, line_nb)?;
+            let mut new_tokens = self.tokenize_line(line, line_nb, &file_name)?;
             tokens.append(&mut new_tokens);
         }
         Ok(tokens)
@@ -165,6 +165,7 @@ impl RegexTokenizer {
         &self,
         line: &str,
         line_number: usize,
+        file_name: &Option<String>
     ) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens = vec![];
 
@@ -203,7 +204,7 @@ impl RegexTokenizer {
                 let current = remaining.chars().next().unwrap();
 
                 return Err(file_error(
-                    &"Token input".to_string(),
+                    &file_name.clone().unwrap_or("STDIN".to_string()),
                     line_number,
                     col,
                     current.len_utf8(),

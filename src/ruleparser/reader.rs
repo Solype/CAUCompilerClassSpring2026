@@ -10,6 +10,7 @@ use regex::Regex;
 
 fn process_line(
     infos: (usize, impl Into<String>),
+    cfg_file: &Option<String>
 ) -> Result<Option<RawProduction>, String>
 {
     let (line_number, buffer) = infos;
@@ -32,7 +33,7 @@ fn process_line(
         Some(c) => c,
         None => {
             return Err(file_error(
-                &"Rules".to_string(),
+                &cfg_file.clone().unwrap_or("Builtin".to_string()),
                 line_number,
                 1,
                 line.len(),
@@ -58,7 +59,7 @@ fn process_line(
     Ok(Some(RawProduction::new(lhs, inputs)))
 }
 
-pub fn parse_rules(buffer: &String) -> Result<Vec<RawProduction>, String> {
+pub fn parse_rules(buffer: &String, cfg_file: &Option<String>) -> Result<Vec<RawProduction>, String> {
     // we create a vector by following those steps:
     // - we transform buffer into an array of line, with \n being a new line
     // - we transform this list of line into an array of enumerated line : ["line 1", "line 2"] -> [(0, "line 1"), (1, "line 2")]
@@ -68,7 +69,7 @@ pub fn parse_rules(buffer: &String) -> Result<Vec<RawProduction>, String> {
     let rules: Vec<Option<RawProduction>> = buffer
         .split('\n')
         .enumerate()
-        .map(process_line)
+        .map(|x| {process_line(x, cfg_file)})
         .collect::<Result<Vec<_>, _>>()?;
 
     // we return the list given once all the empty line are removed, which is the use of "flatten"

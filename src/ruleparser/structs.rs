@@ -218,10 +218,11 @@ impl TokenManager {
     fn wrap_single_token(
         &self,
         unwrapped_token: &(String, TokenMetadata),
+        file_name: &Option<String>
     ) -> Result<(Term, TokenMetadata), String> {
         let token = self.get_token(&unwrapped_token.0).map_err(|_| {
             file_error(
-                &"Tokens".to_string(),
+                &file_name.clone().unwrap_or("STDIN".to_string()),
                 unwrapped_token.1.span.0,
                 unwrapped_token.1.span.1,
                 unwrapped_token.1.str.len(),
@@ -235,7 +236,7 @@ impl TokenManager {
 
         let Token::Term(term) = token else {
             return Err(file_error(
-                &"Tokens".to_string(),
+                    &file_name.clone().unwrap_or("STDIN".to_string()),
                 unwrapped_token.1.span.0,
                 unwrapped_token.1.span.1,
                 unwrapped_token.1.str.len(),
@@ -260,10 +261,11 @@ impl TokenManager {
     pub fn wrap_cooked_token(
         &self,
         cooked_tokens: &Vec<(String, TokenMetadata)>,
+        file_name: &Option<String>
     ) -> Result<Vec<(Term, TokenMetadata)>, String> {
         let mut wrapped_token = cooked_tokens
             .iter()
-            .map(|x| self.wrap_single_token(x))
+            .map(|x| self.wrap_single_token(x, file_name))
             .collect::<Result<Vec<_>, _>>()?;
 
         let end_metadata = if let Some((_, last_meta)) = wrapped_token.last() {
