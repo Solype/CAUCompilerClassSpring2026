@@ -12,7 +12,6 @@ pub struct Parameters {
     pub use_regex: bool,
 }
 
-
 /**
  * Reads source content either from a file or from standard input.
  *

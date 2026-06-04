@@ -92,14 +92,11 @@ impl TokenManager {
      *   - the left-side non-terminal is unknown
      *   - one of the production inputs does not exist
      */
-    fn create_production(
-        &self,
-        prod: &RawProduction,
-    ) -> Result<SimpleProduction, String> {
-
-        let nt = self.get_token(&prod.nt).map_err(|_| {
-                format!("Unknown token '{}' in production left side", prod.nt)
-            })?.sym();
+    fn create_production(&self, prod: &RawProduction) -> Result<SimpleProduction, String> {
+        let nt = self
+            .get_token(&prod.nt)
+            .map_err(|_| format!("Unknown token '{}' in production left side", prod.nt))?
+            .sym();
 
         let mut inputs = Vec::new();
 
@@ -180,11 +177,7 @@ impl TokenManager {
      *
      * This scanner assumes tokens are already separated by spaces or tabs.
      */
-    pub fn scan_tokens(
-        &self,
-        buffer: &String,
-    ) -> Result<Vec<(String, TokenMetadata)>, String> {
-
+    pub fn scan_tokens(&self, buffer: &String) -> Result<Vec<(String, TokenMetadata)>, String> {
         let mut tokens: Vec<(String, TokenMetadata)> = vec![];
 
         let lines: Vec<&str> = buffer.split('\n').collect();
@@ -200,7 +193,7 @@ impl TokenManager {
                 let metadata = TokenMetadata {
                     span: (line_idx + 1, col),
                     str: raw_token.to_string(),
-                    line: (*line_buffer).to_string(),
+                    line: line_buffer.to_string(),
                 };
 
                 tokens.push((raw_token.to_string(), metadata));
@@ -222,19 +215,23 @@ impl TokenManager {
      *   - the token does not exist
      *   - the token is not terminal
      */
-    fn wrap_single_token(&self, unwrapped_token: &(String, TokenMetadata)) -> Result<(Term, TokenMetadata), String>
-    {
-        let token = self.get_token(&unwrapped_token.0)
-            .map_err(|_| {
-                file_error(
-                    &"Tokens".to_string(),
-                    unwrapped_token.1.span.0,
-                    unwrapped_token.1.span.1,
-                    unwrapped_token.1.str.len(),
-                    &unwrapped_token.1.str,
-                    &format!("Unknown token '{}', it can be either the regex or your typing", unwrapped_token.0),
-                )
-            })?;
+    fn wrap_single_token(
+        &self,
+        unwrapped_token: &(String, TokenMetadata),
+    ) -> Result<(Term, TokenMetadata), String> {
+        let token = self.get_token(&unwrapped_token.0).map_err(|_| {
+            file_error(
+                &"Tokens".to_string(),
+                unwrapped_token.1.span.0,
+                unwrapped_token.1.span.1,
+                unwrapped_token.1.str.len(),
+                &unwrapped_token.1.line,
+                &format!(
+                    "Unknown token '{}', it can be either the regex or your typing",
+                    unwrapped_token.0
+                ),
+            )
+        })?;
 
         let Token::Term(term) = token else {
             return Err(file_error(

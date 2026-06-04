@@ -20,7 +20,7 @@ pub type StateId = usize;
  * Accept:
  *     successful parse.
  */
- #[derive(Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Action {
     Shift(StateId),
     Reduce(ProductionId),
@@ -41,7 +41,7 @@ pub type Goto = StateId;
  *     symbol = id
  *     result = S5
  */
- #[derive(Debug)]
+#[derive(Debug)]
 pub struct Transition {
     from: StateId,
     symbol: Token,
