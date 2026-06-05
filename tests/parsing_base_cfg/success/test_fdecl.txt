@@ -1,0 +1,17 @@
+vtype id semi
+
+vtype id lparen vtype id comma vtype id rparen lbrace
+    if lparen boolstr comp boolstr rparen lbrace
+        if lparen boolstr rparen lbrace
+            id assign num semi
+        rbrace else lbrace
+            id assign id semi
+        rbrace
+    rbrace
+
+    return num semi
+rbrace
+
+vtype id lparen rparen lbrace
+    return num semi
+rbrace

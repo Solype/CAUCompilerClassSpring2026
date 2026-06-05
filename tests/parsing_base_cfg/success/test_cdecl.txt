@@ -1,0 +1,10 @@
+class id lbrace
+    vtype id semi
+
+    vtype id lparen rparen lbrace
+        vtype id semi
+        id assign id addsub num semi
+
+        return id semi
+    rbrace
+rbrace
