@@ -152,8 +152,8 @@ Features:
 Example rule:
 
 ```txt
-ID:[a-zA-Z_][a-zA-Z0-9_]*
-NUM:[0-9]+
+id:[a-zA-Z_][a-zA-Z0-9_]*
+num:[0-9]+
 ```
 Those rules must be in the format :`<Token>:<Regex>` with no space in between
 
@@ -204,6 +204,29 @@ Parsing steps:
 On success, the root of the parse tree is returned.\
 On failure, a syntax error describing the unexpected token is returned.
 
+## Testing
+
+Every tests can be found in the folder `tests`.
+
+### Parsing with default cfg
+go to `tests/parsing_base_cfg`. You can execute the script `./test_parsing.sh [binary_path]` (you need chmod 755).
+### Custom cfg file parsing errors
+go to `tests/cfg_errors`. You can execute the script `./test_cfg.sh [binary_path]` (you need chmod 755).
+### Parsing with custom cfg
+go to `tests/other_cfg`. You can try an ambiguous cfg, and the base cfg from js-machine website. Inseide `js_machine` folder:
+```bash
+../../../syntax_analyzer -r js_machine_cfg.cfg test_input
+```
+and
+```bash
+../../../syntax_analyzer -r js_machine_cfg.cfg test_input_regex.txt --use-regex --regex-path lexer.regex
+```
+### Regex example
+go to `tests/regex`. You can try regex:\
+ `../../syntax_analyzer test_fdecl_while.c --use-regex`
+### Regex error
+go to `tests/regex_error`. The files in this folder should raise an error.
+
 ## AI disclosure
 Generative AI tools were used for:
 
@@ -214,3 +237,4 @@ Generative AI tools were used for:
 - Reformulating and improving technical documentation.
 - Understanding of Rust libraries
 - Correction of rust lexical mistakes
+- Helping write tests scripts
