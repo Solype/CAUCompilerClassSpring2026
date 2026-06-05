@@ -198,6 +198,7 @@ impl Parser {
     pub fn parse(
         &mut self,
         mut inputs: Vec<(Term, TokenMetadata)>,
+        token_file: Option<String>
     ) -> Result<Tree<TokenWithMetadata>, String> {
         self.stack = Vec::from([StackValue::State(0)]);
 
@@ -217,7 +218,7 @@ impl Parser {
                         return Err(token_error(TokenWithMetadata {
                             token: Token::Term(term.clone()),
                             metadata: m,
-                        }));
+                        }, token_file));
                     };
 
                     self.action(&action, &mut inputs);
@@ -241,12 +242,12 @@ impl Parser {
                         return Err(token_error(TokenWithMetadata {
                             token: Token::Term(term.clone()),
                             metadata: m,
-                        }));
+                        }, token_file));
                     };
 
                     self.goto(goto);
                 }
-                StackValue::Token(node) => return Err(token_error(node.value)),
+                StackValue::Token(node) => return Err(token_error(node.value, token_file)),
             };
         }
 

@@ -2,9 +2,9 @@ use owo_colors::OwoColorize;
 
 use crate::slr::parser::TokenWithMetadata;
 
-pub fn token_error(token: TokenWithMetadata) -> String {
+pub fn token_error(token: TokenWithMetadata, filename: Option<String>) -> String {
     file_error(
-        &"Token file".to_string(),
+        &filename.unwrap_or("STDIN".to_string()),
         token.metadata.span.0,
         token.metadata.span.1,
         token.metadata.str.len(),

@@ -6,6 +6,10 @@ use std::{
 use crate::{helper::print_help, ruleparser::default::DEFAULT_RULES};
 
 pub struct Parameters {
+    pub rules_name_file: Option<String>,
+    pub regex_name_file: Option<String>,
+    pub token_name_file: Option<String>,
+
     pub rules: String,
     pub input_tokens: String,
     pub regex: Option<String>,
@@ -72,9 +76,9 @@ fn read_source(path: Option<&str>) -> Result<String, String> {
 pub fn get_rule_and_input() -> Result<Parameters, String> {
     let args: Vec<String> = env::args().collect();
 
-    let mut rules_file: Option<&str> = None;
-    let mut token_file: Option<&str> = None;
-    let mut regex_file: Option<&str> = None;
+    let mut rules_file: Option<String> = None;
+    let mut token_file: Option<String> = None;
+    let mut regex_file: Option<String> = None;
     let mut use_regex: bool = false;
 
     let mut i = 1;
@@ -88,7 +92,7 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
                 if i + 1 >= args.len() {
                     return Err("-r requires a file path".to_string());
                 }
-                rules_file = Some(args[i + 1].as_str());
+                rules_file = Some(args[i + 1].clone());
                 i += 2;
             }
 
@@ -104,7 +108,7 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
                 if i + 1 >= args.len() {
                     return Err("--regex_file requires a file path".to_string());
                 }
-                regex_file = Some(args[i + 1].as_str());
+                regex_file = Some(args[i + 1].clone());
                 i += 2;
             }
 
@@ -121,28 +125,31 @@ pub fn get_rule_and_input() -> Result<Parameters, String> {
                     return Err("too many positional arguments".to_string());
                 }
 
-                token_file = Some(file);
+                token_file = Some(file.to_string());
                 i += 1;
             }
         }
     }
-    let rules = match rules_file {
-        Some(path) => read_source(Some(path))?,
+    let rules = match rules_file.clone() {
+        Some(path) => read_source(Some(path.as_str()))?,
         None => DEFAULT_RULES.to_string(),
     };
 
-    let input_tokens = match token_file {
-        Some(path) => read_source(Some(path))?,
+    let input_tokens = match token_file.clone() {
+        Some(path) => read_source(Some(path.as_str()))?,
         None => read_source(None)?,
     };
 
-    let regex = match (regex_file, use_regex) {
+    let regex = match (regex_file.clone(), use_regex) {
         (_, false) => None,
-        (Some(path), true) => Some(read_source(Some(path))?),
+        (Some(path), true) => Some(read_source(Some(path.as_str()))?),
         (None, true) => None,
     };
 
     Ok(Parameters {
+        regex_name_file: regex_file.clone(),
+        rules_name_file: rules_file.clone(),
+        token_name_file: token_file.clone(),
         rules,
         input_tokens,
         regex,
