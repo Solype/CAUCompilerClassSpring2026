@@ -1,0 +1,3 @@
+class id lbrace
+    class id lbrace rbrace
+rbrace

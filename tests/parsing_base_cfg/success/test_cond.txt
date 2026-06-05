@@ -1,9 +1,0 @@
-vtype id lparen rparen
-lbrace
-    if lparen boolstr comp boolstr comp boolstr comp boolstr comp boolstr rparen lbrace
-    if lparen boolstr comp boolstr comp boolstr comp boolstr comp boolstr rparen lbrace rbrace
-    if lparen boolstr comp boolstr comp boolstr comp boolstr comp boolstr rparen lbrace
-    if lparen boolstr comp boolstr comp boolstr comp boolstr comp boolstr rparen lbrace rbrace num rbrace
-    rbrace
-    return num semi
-rbrace
