@@ -14,8 +14,9 @@ pub struct RegexTokenizer {
     rule_set: Vec<RegexTokenRule>,
 }
 
+// REGEX THAT PARSE OTHER REGEX
 static RAW_RULE_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^([A-Z_][A-Z0-9_]*)\s*:\s*(.+)$").unwrap());
+    Lazy::new(|| Regex::new(r"^([A-Za-z][A-Za-z0-9_]*)\s*:\s*(.+)$").unwrap());
 
 impl RegexTokenizer {
     pub fn new() -> Self {
